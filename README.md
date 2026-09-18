@@ -1,4 +1,4 @@
-# 🔍 ArchLens · Adaptive System Design & Incident Simulator
+# ArchLens · Adaptive System Design & Incident Simulator
 
 > *"Every tool lets you break a system. ArchLens teaches you to **debug** one."*  
 > **Challenge:** CodeMyFYP Hackathon 2026 · Challenge 01: AI for Learning  
@@ -6,7 +6,7 @@
 
 ---
 
-## ⚡ Problem: System Design Has No Feedback Loop
+## Problem: System Design Has No Feedback Loop
 
 Students and engineers prepare for system design by reading static articles or clicking around passive sandboxes (e.g., Paperdraw, SysSimulator). But passive sandboxes do not build intuition because:
 1. **No Pre-Commitment:** Users flip toggles without predicting outcomes; being *wrong* about a prediction is what forces deep mental-model updates.
@@ -15,7 +15,7 @@ Students and engineers prepare for system design by reading static articles or c
 
 ---
 
-## 💡 The ArchLens Solution
+## The ArchLens Solution
 
 ArchLens is an adaptive system-design tutor powered by a **pure deterministic M/M/1 queueing simulator** paired with an **in-situ Responsible AI mentor**.
 
@@ -48,14 +48,14 @@ Unlike black-box simulators, the **Glass Box** inspector displays the exact M/M/
 
 ---
 
-## 🇮🇳 Authentic Indian Blueprints & Missions
+## Authentic Indian Blueprints & Missions
 
 1. **IRCTC Tatkal at 10 AM** (`tatkal.json`): 11-node architecture modeling the extreme 10 AM ticket surge, CDN bypass, Redis seat cache eviction, database bottleneck, and payment gateway fanout.
 2. **The Final Over (Live Cricket Streaming)** (`cricket.json`): 11-node architecture modeling CDN edge delivery, video segment transcoders, session cache stampede, and telemetry decoupling.
 
 ---
 
-## 🛡️ Responsible AI & Guardrails (Ground Truth Guarantee)
+## Responsible AI & Guardrails (Ground Truth Guarantee)
 
 Judges evaluate Responsible AI rigorously (15% of score). ArchLens enforces non-negotiable defensive constraints:
 - **Strict Grounding:** The deterministic simulation engine is the sole source of truth. The AI may only explain what the engine computes.
@@ -65,21 +65,21 @@ Judges evaluate Responsible AI rigorously (15% of score). ArchLens enforces non-
 
 ---
 
-## 📊 Comparison with Existing Tools
+## Comparison with Existing Tools
 
-| Feature | Paperdraw / SysSimulator | Generic AI Tutors | **ArchLens** |
+| Feature | Paperdraw / SysSimulator | Generic AI Tutors | ArchLens |
 |---|---|---|---|
 | **Simulation Truth** | Deterministic / Heuristic | Hallucinates numbers | **Deterministic M/M/1 Engine** |
-| **Predict-Before-Seeing** | ❌ None (Passive Sandbox) | ❌ None | **✅ Mandatory Structured Prediction** |
-| **Incident Mode** | ❌ None | ❌ None | **✅ Fog of War + Inspection Budget** |
-| **Formula Transparency** | ❌ Hidden | ❌ None | **✅ Glass Box Panel** |
-| **AI Grounding Guardrails** | ❌ No AI | ❌ Unchecked | **✅ ±2% Delta Validator + Spoiler Guard** |
-| **Spaced Repetition** | ❌ None | ❌ None | **✅ Leitner-Box Daily Incidents** |
-| **Works Offline / No Key** | ✅ | ❌ Fails | **✅ 100% Deterministic Fallback** |
+| **Predict-Before-Seeing** | No (Passive Sandbox) | No | **Yes (Mandatory Structured Prediction)** |
+| **Incident Mode** | No | No | **Yes (Fog of War + Inspection Budget)** |
+| **Formula Transparency** | Hidden | No | **Yes (Glass Box Panel)** |
+| **AI Grounding Guardrails** | No AI | Unchecked | **Yes (±2% Delta Validator + Spoiler Guard)** |
+| **Spaced Repetition** | No | No | **Yes (Leitner-Box Daily Incidents)** |
+| **Works Offline / No Key** | Yes | Fails | **Yes (100% Deterministic Fallback)** |
 
 ---
 
-## 🛠️ Tech Stack & Engineering Standards
+## Tech Stack & Engineering Standards
 
 - **Runtime & Language:** TypeScript 5.x (Strict mode: `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`)
 - **UI & Framework:** React 18/19, Vite, Tailwind CSS (The Verge 2024 Design System tokens)
@@ -90,7 +90,7 @@ Judges evaluate Responsible AI rigorously (15% of score). ArchLens enforces non-
 
 ---
 
-## 🚀 Quick Start & Local Setup
+## Quick Start & Local Setup
 
 ### 1. Clone & Install
 ```bash
@@ -126,7 +126,7 @@ npm run build
 
 ---
 
-## 👥 Authors & Acknowledgments
+## Authors & Acknowledgments
 
 - **Author:** Dilraj ([@Dilraj07](https://github.com/Dilraj07))
 - **Hackathon:** CodeMyFYP Hackathon 2026
