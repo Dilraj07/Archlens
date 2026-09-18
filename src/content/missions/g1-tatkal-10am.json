@@ -1,0 +1,59 @@
+{
+  "id": "g1-tatkal-10am",
+  "blueprintId": "tatkal",
+  "title": "10:00:00 AM · The Tatkal Rush",
+  "concepts": ["spikes", "bottleneck", "rate_limiting"],
+  "brief": "It is 9:59:50 AM. Millions of railway passengers across India have their fingers poised on the Book button. At exactly 10:00:00 AM, the Tatkal ticket window unlocks and traffic spikes 15× in under 3 seconds.",
+  "baseline": {
+    "usersConcurrent": 1000,
+    "requestsPerUserPerSec": 1
+  },
+  "event": {
+    "type": "traffic_spike",
+    "usersConcurrent": 6000,
+    "requestsPerUserPerSec": 1,
+    "description": "Massive sudden surge of 6,000 req/s hitting the booking system."
+  },
+  "prediction": {
+    "kind": "select_node",
+    "prompt": "At 10:00:00 AM when 6,000 req/s flood the system, which component will turn RED first?",
+    "expectedNodeId": "app",
+    "options": ["cdn", "lb", "app", "seat_cache", "seat_db", "payment_gateway"],
+    "misconceptions": {
+      "cdn": "The Edge CDN serves static images and CSS files. Dynamic Tatkal booking transactions bypass it completely!",
+      "payment_gateway": "Payment processing is downstream. Most requests fail at the overloaded app tier long before ever reaching the bank.",
+      "seat_cache": "Seat availability cache has high throughput (30,000 req/s) and can handle the load easily.",
+      "lb": "The L7 Load Balancer has 100,000 req/s capacity and does not become the bottleneck."
+    }
+  },
+  "fix": {
+    "palette": [
+      {
+        "id": "fix_waiting_room",
+        "label": "Enable Virtual Waiting Room",
+        "description": "Throttles incoming booking traffic to backend capacity using queue tokens.",
+        "type": "enable",
+        "targetNodeId": "waiting_room"
+      },
+      {
+        "id": "fix_scale_app",
+        "label": "Scale App Server Pool",
+        "description": "Add 8 additional application server replicas (from 4 to 12).",
+        "type": "add_replica",
+        "targetNodeId": "app",
+        "replicaDelta": 8
+      },
+      {
+        "id": "fix_add_replica_db",
+        "label": "Enable Seat DB Read Replica",
+        "description": "Offload read queries to secondary database replica.",
+        "type": "enable",
+        "targetNodeId": "read_replica"
+      }
+    ],
+    "goal": {
+      "p95LatencyMsMax": 800,
+      "errorRateMax": 0.02
+    }
+  }
+}

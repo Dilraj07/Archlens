@@ -1,0 +1,65 @@
+{
+  "id": "i1-tatkal-down",
+  "blueprintId": "tatkal",
+  "title": "Pager Duty: Tatkal Is Down",
+  "concepts": ["diagnosis", "caching", "replication", "bottleneck"],
+  "pageAlert": "10:02 AM IST · URGENT · Error rate 12.4% and climbing. Indian railway passenger bookings timing out. You are the Senior On-Call Engineer.",
+  "baseline": {
+    "usersConcurrent": 1500,
+    "requestsPerUserPerSec": 1
+  },
+  "hiddenFault": {
+    "type": "cache_collapse",
+    "targetNodeId": "seat_cache",
+    "paramKey": "hitRate",
+    "faultValue": 0.10,
+    "description": "A premature cache invalidation flushed the seat cache cluster; hit rate plummeted from 90% to 10%."
+  },
+  "answer": {
+    "rootCauseNode": "seat_cache",
+    "causeType": "cache_miss_storm"
+  },
+  "spoilerTerms": [
+    "seat_cache",
+    "seat cache",
+    "seat availability cache",
+    "cache miss",
+    "hit rate",
+    "cache flush",
+    "invalidation"
+  ],
+  "inspectBudget": 5,
+  "redHerrings": ["app"],
+  "fix": {
+    "palette": [
+      {
+        "id": "fix_warm_cache",
+        "label": "Warm & Restore Seat Cache",
+        "description": "Pre-warm cached seat availability partitions and restore 90% hit rate.",
+        "type": "restore_param",
+        "targetNodeId": "seat_cache",
+        "paramKey": "hitRate",
+        "paramValue": 0.90
+      },
+      {
+        "id": "fix_enable_read_replica",
+        "label": "Direct Reads to DB Replica",
+        "description": "Route un-cached read queries to the secondary read replica.",
+        "type": "enable",
+        "targetNodeId": "read_replica"
+      },
+      {
+        "id": "fix_waiting_room",
+        "label": "Emergency Virtual Waiting Room",
+        "description": "Throttle entry rate until database saturation resolves.",
+        "type": "enable",
+        "targetNodeId": "waiting_room"
+      }
+    ],
+    "goal": {
+      "p95LatencyMsMax": 650,
+      "errorRateMax": 0.02
+    }
+  },
+  "postMortemLesson": "When upstream application servers appear sluggish, trace the synchronous waits downstream. The app servers weren't overloaded—they were blocked waiting on an overwhelmed database after cache hit rates collapsed."
+}

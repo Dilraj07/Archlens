@@ -1,0 +1,54 @@
+{
+  "id": "g2-cricket-no-cdn",
+  "blueprintId": "cricket",
+  "title": "The Final Over · CDN Bypass",
+  "concepts": ["cdn", "caching", "origin_offload"],
+  "brief": "During the final over of the cricket championship, an operator misconfiguration disables the Edge CDN cache-control headers. Every viewer player now requests video chunks directly from the origin packager.",
+  "baseline": {
+    "usersConcurrent": 5000,
+    "requestsPerUserPerSec": 1
+  },
+  "event": {
+    "type": "cdn_failure",
+    "usersConcurrent": 15000,
+    "requestsPerUserPerSec": 1,
+    "description": "Edge CDN cache bypassed; 15,000 req/s bypass the edge cache."
+  },
+  "prediction": {
+    "kind": "slider",
+    "prompt": "With the Edge CDN bypassed (hitRate = 0%), what percentage of video requests will now bombard the Origin Packager?",
+    "expectedNumericValue": 100,
+    "sliderMin": 0,
+    "sliderMax": 100,
+    "sliderUnit": "%",
+    "tolerancePercent": 5,
+    "misconceptions": {
+      "low": "When a CDN cache is bypassed or disabled, zero requests are absorbed at the edge. 100% of player requests hammer your origin servers directly!"
+    }
+  },
+  "fix": {
+    "palette": [
+      {
+        "id": "fix_enable_cdn",
+        "label": "Restore Edge CDN Caching",
+        "description": "Re-enable Edge CDN caching with 98% hit rate.",
+        "type": "restore_param",
+        "targetNodeId": "edge_cdn",
+        "paramKey": "hitRate",
+        "paramValue": 0.98
+      },
+      {
+        "id": "fix_scale_origin",
+        "label": "Emergency Scale Origin Packager",
+        "description": "Scale Origin Packager replicas from 4 to 12.",
+        "type": "add_replica",
+        "targetNodeId": "origin",
+        "replicaDelta": 8
+      }
+    ],
+    "goal": {
+      "p95LatencyMsMax": 250,
+      "originUtilMax": 0.70
+    }
+  }
+}

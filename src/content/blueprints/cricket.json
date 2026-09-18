@@ -1,0 +1,186 @@
+{
+  "id": "cricket",
+  "name": "The Final Over",
+  "description": "Live cricket streaming architecture handling sudden tens of millions of viewers during final overs.",
+  "entryNodeId": "client",
+  "exitNodeId": "origin",
+  "metadata": {
+    "inspiredBy": "Public technical engineering blogs and tech conference talks on world-record concurrent live sports streaming.",
+    "citation": "Public streaming architecture case studies on CDN edge scaling, live packagers, and telemetry queues.",
+    "disclaimer": "Simplified for pedagogical simulation. Metrics are illustrative and directionally representative."
+  },
+  "nodes": [
+    {
+      "id": "client",
+      "name": "Stream Viewers",
+      "type": "client",
+      "serviceRatePerReplica": 1000000,
+      "replicas": 1,
+      "baseLatencyMs": 0,
+      "enabled": true,
+      "metadata": {
+        "description": "Tens of millions of concurrent viewers fetching video chunks every 2-4 seconds.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "geo_dns",
+      "name": "Geo DNS & Traffic Director",
+      "type": "load_balancer",
+      "serviceRatePerReplica": 500000,
+      "replicas": 1,
+      "baseLatencyMs": 5,
+      "enabled": true,
+      "metadata": {
+        "description": "Directs player traffic to geographically closest edge CDN Points of Presence.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "edge_cdn",
+      "name": "Edge Video CDN",
+      "type": "cdn",
+      "serviceRatePerReplica": 250000,
+      "replicas": 4,
+      "baseLatencyMs": 15,
+      "enabled": true,
+      "hitRate": 0.98,
+      "metadata": {
+        "description": "Global edge caching absorbing 98%+ of video chunk requests. Crucial to prevent origin collapse.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "origin",
+      "name": "Video Origin & Packager",
+      "type": "service",
+      "serviceRatePerReplica": 2500,
+      "replicas": 4,
+      "baseLatencyMs": 40,
+      "enabled": true,
+      "metadata": {
+        "description": "Packages raw video chunks into HLS/DASH streams and handles edge CDN cache misses.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "encoder",
+      "name": "Live Video Transcoder",
+      "type": "service",
+      "serviceRatePerReplica": 1000,
+      "replicas": 2,
+      "baseLatencyMs": 10,
+      "enabled": true,
+      "metadata": {
+        "description": "Converts stadium camera streams into multi-bitrate profiles (1080p, 720p, 4K).",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "api_gw",
+      "name": "API Gateway",
+      "type": "load_balancer",
+      "serviceRatePerReplica": 50000,
+      "replicas": 2,
+      "baseLatencyMs": 8,
+      "enabled": true,
+      "metadata": {
+        "description": "Terminates TLS, throttles rate limits, and routes metadata/scorecard API calls.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "auth_svc",
+      "name": "Entitlement Service",
+      "type": "service",
+      "serviceRatePerReplica": 2000,
+      "replicas": 3,
+      "baseLatencyMs": 20,
+      "enabled": true,
+      "metadata": {
+        "description": "Verifies token claims and subscription status for each viewer stream.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "auth_cache",
+      "name": "Entitlement Cache",
+      "type": "cache",
+      "serviceRatePerReplica": 50000,
+      "replicas": 2,
+      "baseLatencyMs": 3,
+      "enabled": true,
+      "hitRate": 0.95,
+      "metadata": {
+        "description": "In-memory token and subscription cache. Protects the user DB from login storm spikes.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "user_db",
+      "name": "Subscriber DB",
+      "type": "database",
+      "serviceRatePerReplica": 800,
+      "replicas": 1,
+      "baseLatencyMs": 30,
+      "enabled": true,
+      "metadata": {
+        "description": "Primary relational database storing account, plan, and billing details.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "scorecard_svc",
+      "name": "Live Scorecard Service",
+      "type": "service",
+      "serviceRatePerReplica": 15000,
+      "replicas": 2,
+      "baseLatencyMs": 10,
+      "enabled": true,
+      "metadata": {
+        "description": "Pushes real-time ball-by-ball commentary and targeted dynamic ads.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "analytics_queue",
+      "name": "Watch Events Queue",
+      "type": "queue",
+      "serviceRatePerReplica": 50000,
+      "replicas": 2,
+      "baseLatencyMs": 5,
+      "enabled": true,
+      "metadata": {
+        "description": "Asynchronous buffer receiving quality-of-service pings and ad impressions.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "analytics_worker",
+      "name": "Analytics Consumer",
+      "type": "worker",
+      "serviceRatePerReplica": 5000,
+      "replicas": 3,
+      "baseLatencyMs": 150,
+      "enabled": true,
+      "isAsyncConsumer": true,
+      "metadata": {
+        "description": "Drains analytics queue into time-series data warehouse. High latency does not affect live video viewers.",
+        "illustrative": true
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e_c_dns", "source": "client", "target": "geo_dns" },
+    { "id": "e_dns_cdn", "source": "geo_dns", "target": "edge_cdn" },
+    { "id": "e_cdn_origin", "source": "edge_cdn", "target": "origin" },
+    { "id": "e_enc_origin", "source": "encoder", "target": "origin" },
+    { "id": "e_c_gw", "source": "client", "target": "api_gw" },
+    { "id": "e_gw_auth", "source": "api_gw", "target": "auth_svc" },
+    { "id": "e_auth_cache", "source": "auth_svc", "target": "auth_cache" },
+    { "id": "e_cache_db", "source": "auth_cache", "target": "user_db" },
+    { "id": "e_gw_score", "source": "api_gw", "target": "scorecard_svc" },
+    { "id": "e_c_queue", "source": "client", "target": "analytics_queue", "isAsync": true },
+    { "id": "e_queue_worker", "source": "analytics_queue", "target": "analytics_worker", "isAsync": true }
+  ]
+}

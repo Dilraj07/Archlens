@@ -1,0 +1,42 @@
+{
+  "id": "g3-slow-analytics",
+  "blueprintId": "cricket",
+  "title": "Slow Analytics · Decoupled Queues",
+  "concepts": ["queues", "decoupling", "backpressure"],
+  "brief": "A heavy ad-hoc SQL query locks the Analytics data warehouse. The analytics consumers slow to a crawl, and processing latency jumps from 150ms to 2,500ms per batch.",
+  "baseline": {
+    "usersConcurrent": 8000,
+    "requestsPerUserPerSec": 1
+  },
+  "event": {
+    "type": "consumer_degraded",
+    "usersConcurrent": 8000,
+    "requestsPerUserPerSec": 1,
+    "description": "Analytics worker latency degrades 15×; events accumulate in the Kafka queue."
+  },
+  "prediction": {
+    "kind": "boolean",
+    "prompt": "Do viewers actively streaming the cricket match notice video stuttering or stream latency increases? (Yes / No)",
+    "expectedBoolean": false,
+    "options": ["Yes", "No"],
+    "misconceptions": {
+      "true": "Even though analytics consumers are heavily degraded, they sit behind an asynchronous message queue! Asynchronous edges are completely decoupled from the synchronous video streaming critical path."
+    }
+  },
+  "fix": {
+    "palette": [
+      {
+        "id": "fix_scale_workers",
+        "label": "Scale Analytics Consumer Workers",
+        "description": "Triple consumer worker replicas (from 3 to 9) to drain queue backlog.",
+        "type": "add_replica",
+        "targetNodeId": "analytics_worker",
+        "replicaDelta": 6
+      }
+    ],
+    "goal": {
+      "p95LatencyMsMax": 200,
+      "errorRateMax": 0.01
+    }
+  }
+}

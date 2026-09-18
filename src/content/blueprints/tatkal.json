@@ -1,0 +1,185 @@
+{
+  "id": "tatkal",
+  "name": "Tatkal at 10 AM",
+  "description": "IRCTC-inspired railway ticket booking system during peak morning Tatkal rush.",
+  "entryNodeId": "client",
+  "exitNodeId": "payment_gateway",
+  "metadata": {
+    "inspiredBy": "Public technical architecture talks and high-concurrency ticketing engineering analyses.",
+    "citation": "Public IRCTC infrastructure modernization talks (CRIS) and railway booking concurrency case studies.",
+    "disclaimer": "Simplified for pedagogical simulation. Metrics are illustrative and directionally representative."
+  },
+  "nodes": [
+    {
+      "id": "client",
+      "name": "Web & Mobile Clients",
+      "type": "client",
+      "serviceRatePerReplica": 500000,
+      "replicas": 1,
+      "baseLatencyMs": 0,
+      "enabled": true,
+      "metadata": {
+        "description": "Millions of concurrent users hitting Search and Book simultaneously at 10:00:00 AM.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "cdn",
+      "name": "Edge CDN (Static Assets)",
+      "type": "cdn",
+      "serviceRatePerReplica": 100000,
+      "replicas": 1,
+      "baseLatencyMs": 10,
+      "enabled": true,
+      "hitRate": 0.95,
+      "metadata": {
+        "description": "Absorbs static images, CSS, and UI assets. Cannot absorb dynamic booking transactions.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "lb",
+      "name": "Layer 7 Load Balancer",
+      "type": "load_balancer",
+      "serviceRatePerReplica": 50000,
+      "replicas": 2,
+      "baseLatencyMs": 2,
+      "enabled": true,
+      "metadata": {
+        "description": "Distributes incoming traffic across backend application server clusters.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "waiting_room",
+      "name": "Virtual Waiting Room",
+      "type": "rate_limiter",
+      "serviceRatePerReplica": 20000,
+      "replicas": 1,
+      "baseLatencyMs": 5,
+      "enabled": false,
+      "metadata": {
+        "description": "Queues excess traffic into a virtual queue with countdown tokens to protect backends.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "app",
+      "name": "Booking App Servers",
+      "type": "service",
+      "serviceRatePerReplica": 300,
+      "replicas": 4,
+      "baseLatencyMs": 20,
+      "enabled": true,
+      "metadata": {
+        "description": "Application servers executing business rules, pricing, passenger data validation, and seat holds.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "seat_cache",
+      "name": "Seat Availability Cache",
+      "type": "cache",
+      "serviceRatePerReplica": 15000,
+      "replicas": 2,
+      "baseLatencyMs": 3,
+      "enabled": true,
+      "hitRate": 0.90,
+      "metadata": {
+        "description": "Distributed in-memory cache answering seat queries. Reduces read load on primary DB by 90%.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "seat_db",
+      "name": "Seat Inventory DB (Primary)",
+      "type": "database",
+      "serviceRatePerReplica": 350,
+      "replicas": 1,
+      "baseLatencyMs": 35,
+      "enabled": true,
+      "metadata": {
+        "description": "Relational transactional database managing strict seat locking and row contention for popular trains.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "read_replica",
+      "name": "Seat DB (Read Replica)",
+      "type": "database",
+      "serviceRatePerReplica": 350,
+      "replicas": 1,
+      "baseLatencyMs": 35,
+      "enabled": false,
+      "metadata": {
+        "description": "Secondary database replica offloading search queries when cache misses occur.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "booking_queue",
+      "name": "Booking Queue",
+      "type": "queue",
+      "serviceRatePerReplica": 10000,
+      "replicas": 1,
+      "baseLatencyMs": 5,
+      "enabled": true,
+      "metadata": {
+        "description": "Decouples payment confirmations and notification workers asynchronously.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "payment_svc",
+      "name": "Payment Service",
+      "type": "service",
+      "serviceRatePerReplica": 500,
+      "replicas": 2,
+      "baseLatencyMs": 25,
+      "enabled": true,
+      "metadata": {
+        "description": "Handles payment callback validation and banking reconciliation.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "payment_gateway",
+      "name": "External Bank Gateway",
+      "type": "external",
+      "serviceRatePerReplica": 400,
+      "replicas": 1,
+      "baseLatencyMs": 150,
+      "enabled": true,
+      "metadata": {
+        "description": "Third-party banking gateway with high base latency.",
+        "illustrative": true
+      }
+    },
+    {
+      "id": "sms_worker",
+      "name": "SMS / Notification Worker",
+      "type": "worker",
+      "serviceRatePerReplica": 200,
+      "replicas": 2,
+      "baseLatencyMs": 500,
+      "enabled": true,
+      "isAsyncConsumer": true,
+      "metadata": {
+        "description": "Asynchronously dispatches ticket confirmation emails and SMS.",
+        "illustrative": true
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e_client_cdn", "source": "client", "target": "cdn" },
+    { "id": "e_client_lb", "source": "client", "target": "lb" },
+    { "id": "e_lb_app", "source": "lb", "target": "app" },
+    { "id": "e_app_cache", "source": "app", "target": "seat_cache" },
+    { "id": "e_cache_db", "source": "seat_cache", "target": "seat_db" },
+    { "id": "e_cache_replica", "source": "seat_cache", "target": "read_replica" },
+    { "id": "e_app_queue", "source": "app", "target": "booking_queue", "isAsync": true },
+    { "id": "e_app_payment", "source": "app", "target": "payment_svc" },
+    { "id": "e_payment_gw", "source": "payment_svc", "target": "payment_gateway" },
+    { "id": "e_queue_sms", "source": "booking_queue", "target": "sms_worker", "isAsync": true }
+  ]
+}
