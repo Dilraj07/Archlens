@@ -1,0 +1,202 @@
+{
+  "id": "amazon",
+  "name": "Level 4: Amazon E-Commerce Hyperscale",
+  "description": "Amazon's real-world distributed microservices architecture: CloudFront CDN, API Gateway, DynamoDB catalog, Redis cart cache, Kafka order pipeline, and Aurora DB.",
+  "entryNodeId": "client",
+  "exitNodeId": "aurora_inventory",
+  "metadata": {
+    "citation": "Public AWS Architecture Center whitepapers and Amazon Prime Day engineering post-mortems.",
+    "inspiredBy": "Amazon.com e-commerce microservices and event-driven order processing.",
+    "disclaimer": "Simplified for pedagogical simulation. Models decoupled event streaming and partitioned databases."
+  },
+  "nodes": [
+    {
+      "id": "client",
+      "name": "Shoppers (Web & App)",
+      "type": "client",
+      "serviceRatePerReplica": 500000,
+      "replicas": 1,
+      "baseLatencyMs": 0,
+      "enabled": true,
+      "metadata": {
+        "description": "Hundreds of thousands of concurrent shoppers browsing products and placing orders."
+      }
+    },
+    {
+      "id": "cloudfront_cdn",
+      "name": "CloudFront CDN & WAF",
+      "type": "cdn",
+      "serviceRatePerReplica": 200000,
+      "replicas": 1,
+      "baseLatencyMs": 5,
+      "enabled": true,
+      "hitRate": 0.90,
+      "metadata": {
+        "description": "Edge locations caching product images, CSS/JS, and shielding backend from bot traffic."
+      }
+    },
+    {
+      "id": "api_gateway",
+      "name": "API Gateway & Router",
+      "type": "rate_limiter",
+      "serviceRatePerReplica": 100000,
+      "replicas": 2,
+      "baseLatencyMs": 4,
+      "enabled": true,
+      "metadata": {
+        "description": "Handles authentication, SSL offloading, rate limiting, and routes requests to microservices."
+      }
+    },
+    {
+      "id": "product_service",
+      "name": "Product Catalog Service",
+      "type": "service",
+      "serviceRatePerReplica": 25000,
+      "replicas": 4,
+      "baseLatencyMs": 10,
+      "enabled": true,
+      "metadata": {
+        "description": "Stateless microservice querying product details, ratings, and pricing."
+      }
+    },
+    {
+      "id": "dynamodb_catalog",
+      "name": "DynamoDB (Product Store)",
+      "type": "database",
+      "serviceRatePerReplica": 80000,
+      "replicas": 1,
+      "baseLatencyMs": 6,
+      "enabled": true,
+      "metadata": {
+        "description": "Horizontally partitioned NoSQL database providing single-digit millisecond product reads at massive scale."
+      }
+    },
+    {
+      "id": "cart_service",
+      "name": "Shopping Cart Service",
+      "type": "service",
+      "serviceRatePerReplica": 20000,
+      "replicas": 3,
+      "baseLatencyMs": 8,
+      "enabled": true,
+      "metadata": {
+        "description": "Microservice managing active customer shopping carts and basket contents."
+      }
+    },
+    {
+      "id": "redis_cart",
+      "name": "Redis ElastiCache (Cart)",
+      "type": "cache",
+      "serviceRatePerReplica": 60000,
+      "replicas": 1,
+      "baseLatencyMs": 1,
+      "enabled": true,
+      "hitRate": 0.95,
+      "metadata": {
+        "description": "Ultra-low latency in-memory store keeping user carts active with 95% hit rate."
+      }
+    },
+    {
+      "id": "order_service",
+      "name": "Order & Checkout Service",
+      "type": "service",
+      "serviceRatePerReplica": 15000,
+      "replicas": 4,
+      "baseLatencyMs": 18,
+      "enabled": true,
+      "metadata": {
+        "description": "Validates checkout baskets, calculates taxes, and initiates payment authorization."
+      }
+    },
+    {
+      "id": "kafka_orders",
+      "name": "Kafka (Order Event Stream)",
+      "type": "queue",
+      "serviceRatePerReplica": 50000,
+      "replicas": 1,
+      "baseLatencyMs": 3,
+      "enabled": true,
+      "metadata": {
+        "description": "Distributed log queue decoupling instant checkout from payment settlement and warehouse workers."
+      }
+    },
+    {
+      "id": "payment_worker",
+      "name": "Payment Worker & Gateway",
+      "type": "worker",
+      "serviceRatePerReplica": 10000,
+      "replicas": 3,
+      "baseLatencyMs": 40,
+      "enabled": true,
+      "isAsyncConsumer": true,
+      "metadata": {
+        "description": "Asynchronously charges credit cards and verifies fraud detection APIs."
+      }
+    },
+    {
+      "id": "aurora_inventory",
+      "name": "Aurora PostgreSQL (Inventory)",
+      "type": "database",
+      "serviceRatePerReplica": 12000,
+      "replicas": 2,
+      "baseLatencyMs": 20,
+      "enabled": true,
+      "metadata": {
+        "description": "ACID-compliant relational database cluster recording stock reservations and financial ledgers."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_client_cdn",
+      "source": "client",
+      "target": "cloudfront_cdn"
+    },
+    {
+      "id": "e_cdn_gateway",
+      "source": "cloudfront_cdn",
+      "target": "api_gateway"
+    },
+    {
+      "id": "e_gateway_product",
+      "source": "api_gateway",
+      "target": "product_service"
+    },
+    {
+      "id": "e_product_dynamo",
+      "source": "product_service",
+      "target": "dynamodb_catalog"
+    },
+    {
+      "id": "e_gateway_cart",
+      "source": "api_gateway",
+      "target": "cart_service"
+    },
+    {
+      "id": "e_cart_redis",
+      "source": "cart_service",
+      "target": "redis_cart"
+    },
+    {
+      "id": "e_gateway_order",
+      "source": "api_gateway",
+      "target": "order_service"
+    },
+    {
+      "id": "e_order_kafka",
+      "source": "order_service",
+      "target": "kafka_orders"
+    },
+    {
+      "id": "e_kafka_worker",
+      "source": "kafka_orders",
+      "target": "payment_worker",
+      "isAsync": true
+    },
+    {
+      "id": "e_worker_inventory",
+      "source": "payment_worker",
+      "target": "aurora_inventory"
+    }
+  ]
+}

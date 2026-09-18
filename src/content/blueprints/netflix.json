@@ -1,0 +1,149 @@
+{
+  "id": "netflix",
+  "name": "Level 5: Netflix Video Streaming",
+  "description": "Netflix's global video streaming architecture: Open Connect CDN appliances, Zuul API gateway, Cassandra cluster, S3 video segment store, and Kafka telemetry.",
+  "entryNodeId": "client",
+  "exitNodeId": "s3_video_store",
+  "metadata": {
+    "citation": "Netflix Technology Blog: Open Connect worldwide deployment and microservices architecture.",
+    "inspiredBy": "Netflix video playback, session authorization, and edge video chunk delivery.",
+    "disclaimer": "Simplified for pedagogical simulation. Focuses on CDN edge caching and distributed database offloading."
+  },
+  "nodes": [
+    {
+      "id": "client",
+      "name": "Viewers (TVs & Phones)",
+      "type": "client",
+      "serviceRatePerReplica": 500000,
+      "replicas": 1,
+      "baseLatencyMs": 0,
+      "enabled": true,
+      "metadata": {
+        "description": "Millions of concurrent streams playing 4K/1080p video chunks every 4 seconds."
+      }
+    },
+    {
+      "id": "open_connect_cdn",
+      "name": "Open Connect CDN Edge",
+      "type": "cdn",
+      "serviceRatePerReplica": 400000,
+      "replicas": 1,
+      "baseLatencyMs": 4,
+      "enabled": true,
+      "hitRate": 0.96,
+      "metadata": {
+        "description": "Custom hardware edge cache deployed inside telecom ISPs worldwide, serving 96% of video chunks directly."
+      }
+    },
+    {
+      "id": "api_gateway",
+      "name": "Zuul API Gateway",
+      "type": "load_balancer",
+      "serviceRatePerReplica": 80000,
+      "replicas": 2,
+      "baseLatencyMs": 3,
+      "enabled": true,
+      "metadata": {
+        "description": "Dynamic routing gateway managing authentication, SSL offload, and client device adapters."
+      }
+    },
+    {
+      "id": "playback_service",
+      "name": "Playback Entitlement Svc",
+      "type": "service",
+      "serviceRatePerReplica": 25000,
+      "replicas": 3,
+      "baseLatencyMs": 12,
+      "enabled": true,
+      "metadata": {
+        "description": "Verifies active subscription, DRM licenses, and selects optimal bitrates."
+      }
+    },
+    {
+      "id": "cassandra_db",
+      "name": "Cassandra Cluster (User Data)",
+      "type": "database",
+      "serviceRatePerReplica": 50000,
+      "replicas": 1,
+      "baseLatencyMs": 8,
+      "enabled": true,
+      "metadata": {
+        "description": "Highly available wide-column NoSQL database storing user viewing history and device bookmarks."
+      }
+    },
+    {
+      "id": "recommendation_svc",
+      "name": "Recommendation Engine",
+      "type": "service",
+      "serviceRatePerReplica": 18000,
+      "replicas": 2,
+      "baseLatencyMs": 25,
+      "enabled": true,
+      "metadata": {
+        "description": "Computes personalized video rows ('Because you watched...') using ML models."
+      }
+    },
+    {
+      "id": "redis_recs",
+      "name": "Redis (Recs Cache)",
+      "type": "cache",
+      "serviceRatePerReplica": 60000,
+      "replicas": 1,
+      "baseLatencyMs": 1,
+      "enabled": true,
+      "hitRate": 0.90,
+      "metadata": {
+        "description": "Caches precomputed recommendation rows to avoid continuous ML recalculation."
+      }
+    },
+    {
+      "id": "s3_video_store",
+      "name": "AWS S3 Master Video Store",
+      "type": "database",
+      "serviceRatePerReplica": 20000,
+      "replicas": 1,
+      "baseLatencyMs": 35,
+      "enabled": true,
+      "metadata": {
+        "description": "Origin storage holding master encrypted video files and transcode source packages."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_client_cdn",
+      "source": "client",
+      "target": "open_connect_cdn"
+    },
+    {
+      "id": "e_cdn_gateway",
+      "source": "open_connect_cdn",
+      "target": "api_gateway"
+    },
+    {
+      "id": "e_gateway_playback",
+      "source": "api_gateway",
+      "target": "playback_service"
+    },
+    {
+      "id": "e_playback_cassandra",
+      "source": "playback_service",
+      "target": "cassandra_db"
+    },
+    {
+      "id": "e_gateway_recs",
+      "source": "api_gateway",
+      "target": "recommendation_svc"
+    },
+    {
+      "id": "e_recs_cache",
+      "source": "recommendation_svc",
+      "target": "redis_recs"
+    },
+    {
+      "id": "e_playback_s3",
+      "source": "playback_service",
+      "target": "s3_video_store"
+    }
+  ]
+}

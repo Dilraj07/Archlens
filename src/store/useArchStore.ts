@@ -1,12 +1,22 @@
 import { create } from 'zustand';
-import { ArchGraph, NodeSpec, Scenario, SimResult, StateDelta } from '../engine/types';
+import { ArchGraph, NodeSpec, NodeType, Scenario, SimResult, StateDelta } from '../engine/types';
 import { simulate } from '../engine/simulate';
 import { diff } from '../engine/diff';
 import { checkGoal, DiagnosisSubmission, gradeDiagnosis, gradePrediction, IncidentGrade, PredictionGrade } from '../engine/grade';
 import { createDefaultReviewLog, recordConceptReview, ReviewLog } from '../engine/scheduler';
 import { BLUEPRINTS, getBlueprint, getIncident, getMission, Incident, Mission } from '../content';
 
-export type AppView = 'landing' | 'missions' | 'mission_player' | 'incident_player' | 'daily_incident' | 'mastery';
+export type AppView =
+  | 'landing'
+  | 'learn'
+  | 'architectures'
+  | 'challenges'
+  | 'studio'
+  | 'missions'
+  | 'mission_player'
+  | 'incident_player'
+  | 'daily_incident'
+  | 'mastery';
 
 export type MissionStep = 'brief' | 'predict' | 'observe' | 'explain' | 'fix' | 'completed';
 
@@ -26,15 +36,36 @@ interface ArchState {
   activeMission: Mission | null;
   activeIncident: Incident | null;
 
-  // Selected Node (for Glass Box formula inspector)
+  // Selected Node (for Glass Box formula inspector & hyperparameter tuning)
   selectedNodeId: string | null;
 
-  // Simulation Engine State
+  // Simulation Engine State & Hyperparameters
   activeScenario: Scenario;
   baselineResult: SimResult;
   currentResult: SimResult;
   stateDelta: StateDelta | null;
   activeOverrides: Record<string, Partial<NodeSpec>>;
+  isSimulating: boolean;
+
+  // Interactive Hyperparameter Tuning
+  setTrafficLoad: (usersConcurrent: number, requestsPerUserPerSec?: number) => void;
+  updateNodeConfig: (nodeId: string, updates: Partial<NodeSpec>) => void;
+  selectArchitecture: (blueprintId: string) => void;
+
+  // Design Studio (Sandbox) State
+  studioGraph: ArchGraph;
+  studioTraffic: number;
+  studioSimResult: SimResult | null;
+  studioSelectedNodeId: string | null;
+  addStudioNode: (type: NodeType, name?: string) => void;
+  updateStudioNode: (nodeId: string, updates: Partial<NodeSpec>) => void;
+  removeStudioNode: (nodeId: string) => void;
+  connectStudioNodes: (sourceId: string, targetId: string) => void;
+  removeStudioEdge: (edgeId: string) => void;
+  simulateStudio: () => void;
+  resetStudio: () => void;
+  loadStudioTemplate: (blueprintId: string) => void;
+  selectStudioNode: (nodeId: string | null) => void;
 
   // Guided Mission Flow State
   missionStep: MissionStep;
@@ -110,13 +141,66 @@ function persistReviewLog(log: ReviewLog) {
 }
 
 export const useArchStore = create<ArchState>((set, get) => {
-  const defaultBlueprint = BLUEPRINTS['tatkal']!;
+  const defaultBlueprint = BLUEPRINTS['simple-app'] || BLUEPRINTS['tatkal']!;
   const defaultScenario: Scenario = { usersConcurrent: 1000, requestsPerUserPerSec: 1 };
   const initialBaseline = simulate(defaultBlueprint, defaultScenario);
 
+  const initialStudioGraph: ArchGraph = {
+    id: 'studio-custom',
+    name: 'My Custom Architecture',
+    description: 'Custom system designed in the ArchLens Studio sandbox.',
+    entryNodeId: 'node_client',
+    exitNodeId: 'node_db',
+    nodes: [
+      {
+        id: 'node_client',
+        name: 'Web Clients',
+        type: 'client',
+        serviceRatePerReplica: 50000,
+        replicas: 1,
+        baseLatencyMs: 0,
+        enabled: true,
+      },
+      {
+        id: 'node_lb',
+        name: 'Load Balancer',
+        type: 'load_balancer',
+        serviceRatePerReplica: 30000,
+        replicas: 1,
+        baseLatencyMs: 2,
+        enabled: true,
+      },
+      {
+        id: 'node_server',
+        name: 'App Server',
+        type: 'service',
+        serviceRatePerReplica: 3000,
+        replicas: 2,
+        baseLatencyMs: 15,
+        enabled: true,
+      },
+      {
+        id: 'node_db',
+        name: 'SQL Database',
+        type: 'database',
+        serviceRatePerReplica: 2000,
+        replicas: 1,
+        baseLatencyMs: 25,
+        enabled: true,
+      },
+    ],
+    edges: [
+      { id: 'e_client_lb', source: 'node_client', target: 'node_lb' },
+      { id: 'e_lb_server', source: 'node_lb', target: 'node_server' },
+      { id: 'e_server_db', source: 'node_server', target: 'node_db' },
+    ],
+  };
+
+  const initialStudioSim = simulate(initialStudioGraph, { usersConcurrent: 2500, requestsPerUserPerSec: 1 });
+
   return {
     view: 'landing',
-    activeBlueprintId: 'tatkal',
+    activeBlueprintId: 'simple-app',
     activeBlueprint: defaultBlueprint,
     activeMission: null,
     activeIncident: null,
@@ -127,13 +211,16 @@ export const useArchStore = create<ArchState>((set, get) => {
     currentResult: initialBaseline,
     stateDelta: null,
     activeOverrides: {},
+    isSimulating: true,
 
+    // Guided Mission Flow State
     missionStep: 'brief',
     userPrediction: null,
     predictionGrade: null,
     appliedFixIds: [],
     goalResult: null,
 
+    // Incident Mode State
     inspectBudgetRemaining: 5,
     revealedNodeIds: [],
     inspectionLog: [],
@@ -143,10 +230,61 @@ export const useArchStore = create<ArchState>((set, get) => {
     isDiagnosed: false,
     isIncidentResolved: false,
 
+    // AI Tutor & Communication
     tutorMessages: [],
     isTutorThinking: false,
 
+    // Spaced Retention & Mastery Profile
     reviewLog: loadStoredReviewLog(),
+
+    // Hyperparameter tuning
+    setTrafficLoad: (usersConcurrent, requestsPerUserPerSec = 1) => {
+      const { activeBlueprint } = get();
+      const newScenario: Scenario = {
+        usersConcurrent,
+        requestsPerUserPerSec,
+      };
+      const result = simulate(activeBlueprint, newScenario);
+      set({
+        activeScenario: newScenario,
+        currentResult: result,
+      });
+    },
+
+    updateNodeConfig: (nodeId, updates) => {
+      const { activeBlueprint, activeScenario } = get();
+      const updatedNodes = activeBlueprint.nodes.map((node) =>
+        node.id === nodeId ? { ...node, ...updates } : node
+      );
+      const updatedBlueprint: ArchGraph = {
+        ...activeBlueprint,
+        nodes: updatedNodes,
+      };
+
+      const result = simulate(updatedBlueprint, activeScenario);
+      set({
+        activeBlueprint: updatedBlueprint,
+        currentResult: result,
+      });
+    },
+
+    selectArchitecture: (blueprintId) => {
+      const bp = getBlueprint(blueprintId);
+      if (!bp) return;
+      const baseScenario: Scenario = { usersConcurrent: 2500, requestsPerUserPerSec: 1 };
+      const sim = simulate(bp, baseScenario);
+      set({
+        view: 'architectures',
+        activeBlueprintId: blueprintId,
+        activeBlueprint: bp,
+        activeScenario: baseScenario,
+        baselineResult: sim,
+        currentResult: sim,
+        stateDelta: null,
+        activeOverrides: {},
+        selectedNodeId: bp.nodes[1]?.id || bp.nodes[0]?.id || null,
+      });
+    },
 
     setView: (view) => set({ view }),
 
@@ -166,6 +304,180 @@ export const useArchStore = create<ArchState>((set, get) => {
         stateDelta: null,
         activeOverrides: {},
         selectedNodeId: null,
+      });
+    },
+
+    // Design Studio
+    studioGraph: initialStudioGraph,
+    studioTraffic: 2500,
+    studioSimResult: initialStudioSim,
+    studioSelectedNodeId: null,
+
+    selectStudioNode: (nodeId) => set({ studioSelectedNodeId: nodeId }),
+
+    addStudioNode: (type, name) => {
+      const { studioGraph, studioTraffic } = get();
+      const nodeCount = studioGraph.nodes.length + 1;
+      const id = `node_${type}_${Date.now()}`;
+      const defaultRates: Record<NodeType, { rate: number; latency: number; name: string }> = {
+        client: { rate: 100000, latency: 0, name: 'Client Traffic' },
+        cdn: { rate: 50000, latency: 5, name: 'Edge CDN' },
+        load_balancer: { rate: 40000, latency: 2, name: 'Load Balancer' },
+        service: { rate: 3000, latency: 15, name: 'App Server' },
+        cache: { rate: 25000, latency: 1, name: 'Redis Cache' },
+        database: { rate: 1500, latency: 30, name: 'Database' },
+        queue: { rate: 30000, latency: 2, name: 'Message Queue' },
+        worker: { rate: 2000, latency: 40, name: 'Worker Service' },
+        external: { rate: 1000, latency: 80, name: 'Third-party API' },
+        rate_limiter: { rate: 35000, latency: 3, name: 'API Gateway / Limiter' },
+      };
+
+      const meta = defaultRates[type] || { rate: 3000, latency: 20, name: `${type} node` };
+
+      const newNode: NodeSpec = {
+        id,
+        name: name || `${meta.name} #${nodeCount}`,
+        type,
+        serviceRatePerReplica: meta.rate,
+        replicas: 1,
+        baseLatencyMs: meta.latency,
+        enabled: true,
+        hitRate: type === 'cache' ? 0.85 : type === 'cdn' ? 0.90 : undefined,
+      };
+
+      const updatedGraph: ArchGraph = {
+        ...studioGraph,
+        nodes: [...studioGraph.nodes, newNode],
+      };
+
+      let sim = null;
+      try {
+        sim = simulate(updatedGraph, { usersConcurrent: studioTraffic, requestsPerUserPerSec: 1 });
+      } catch {
+        // graph might be temporarily disconnected
+      }
+
+      set({
+        studioGraph: updatedGraph,
+        studioSimResult: sim,
+        studioSelectedNodeId: id,
+      });
+    },
+
+    updateStudioNode: (nodeId, updates) => {
+      const { studioGraph, studioTraffic } = get();
+      const updatedNodes = studioGraph.nodes.map((n) =>
+        n.id === nodeId ? { ...n, ...updates } : n
+      );
+      const updatedGraph: ArchGraph = { ...studioGraph, nodes: updatedNodes };
+      let sim = null;
+      try {
+        sim = simulate(updatedGraph, { usersConcurrent: studioTraffic, requestsPerUserPerSec: 1 });
+      } catch {
+        // cycle or disconnected
+      }
+      set({
+        studioGraph: updatedGraph,
+        studioSimResult: sim,
+      });
+    },
+
+    removeStudioNode: (nodeId) => {
+      const { studioGraph, studioTraffic, studioSelectedNodeId } = get();
+      const updatedNodes = studioGraph.nodes.filter((n) => n.id !== nodeId);
+      const updatedEdges = studioGraph.edges.filter(
+        (e) => e.source !== nodeId && e.target !== nodeId
+      );
+      const updatedGraph: ArchGraph = { ...studioGraph, nodes: updatedNodes, edges: updatedEdges };
+      let sim = null;
+      try {
+        sim = simulate(updatedGraph, { usersConcurrent: studioTraffic, requestsPerUserPerSec: 1 });
+      } catch {
+        // ignore
+      }
+      set({
+        studioGraph: updatedGraph,
+        studioSimResult: sim,
+        studioSelectedNodeId: studioSelectedNodeId === nodeId ? null : studioSelectedNodeId,
+      });
+    },
+
+    connectStudioNodes: (sourceId, targetId) => {
+      const { studioGraph, studioTraffic } = get();
+      if (sourceId === targetId) return;
+      const edgeExists = studioGraph.edges.some(
+        (e) => e.source === sourceId && e.target === targetId
+      );
+      if (edgeExists) return;
+
+      const newEdge = {
+        id: `e_${sourceId}_${targetId}`,
+        source: sourceId,
+        target: targetId,
+      };
+
+      const updatedGraph: ArchGraph = {
+        ...studioGraph,
+        edges: [...studioGraph.edges, newEdge],
+      };
+
+      let sim = null;
+      try {
+        sim = simulate(updatedGraph, { usersConcurrent: studioTraffic, requestsPerUserPerSec: 1 });
+      } catch {
+        // ignore
+      }
+
+      set({
+        studioGraph: updatedGraph,
+        studioSimResult: sim,
+      });
+    },
+
+    removeStudioEdge: (edgeId) => {
+      const { studioGraph, studioTraffic } = get();
+      const updatedEdges = studioGraph.edges.filter((e) => e.id !== edgeId);
+      const updatedGraph: ArchGraph = { ...studioGraph, edges: updatedEdges };
+      let sim = null;
+      try {
+        sim = simulate(updatedGraph, { usersConcurrent: studioTraffic, requestsPerUserPerSec: 1 });
+      } catch {
+        // ignore
+      }
+      set({
+        studioGraph: updatedGraph,
+        studioSimResult: sim,
+      });
+    },
+
+    simulateStudio: () => {
+      const { studioGraph, studioTraffic } = get();
+      try {
+        const sim = simulate(studioGraph, { usersConcurrent: studioTraffic, requestsPerUserPerSec: 1 });
+        set({ studioSimResult: sim });
+      } catch (err) {
+        console.warn('Simulation error on custom studio graph:', err);
+      }
+    },
+
+    resetStudio: () => {
+      set({
+        studioGraph: initialStudioGraph,
+        studioTraffic: 2500,
+        studioSimResult: initialStudioSim,
+        studioSelectedNodeId: null,
+      });
+    },
+
+    loadStudioTemplate: (blueprintId) => {
+      const bp = getBlueprint(blueprintId);
+      if (!bp) return;
+      const sim = simulate(bp, { usersConcurrent: 2500, requestsPerUserPerSec: 1 });
+      set({
+        studioGraph: JSON.parse(JSON.stringify(bp)),
+        studioTraffic: 2500,
+        studioSimResult: sim,
+        studioSelectedNodeId: null,
       });
     },
 

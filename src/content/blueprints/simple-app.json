@@ -1,0 +1,61 @@
+{
+  "id": "simple-app",
+  "name": "Level 1: Simple Web Application",
+  "description": "A classic 2-tier architecture with a monolithic app server and a single PostgreSQL database.",
+  "entryNodeId": "client",
+  "exitNodeId": "postgres_db",
+  "metadata": {
+    "inspiredBy": "Standard beginner web development setup (Django, Rails, Node/Express with Postgres).",
+    "disclaimer": "Great for up to ~1,000 active users. Beyond that, the single database and server saturate quickly."
+  },
+  "nodes": [
+    {
+      "id": "client",
+      "name": "Web & Mobile Users",
+      "type": "client",
+      "serviceRatePerReplica": 50000,
+      "replicas": 1,
+      "baseLatencyMs": 0,
+      "enabled": true,
+      "metadata": {
+        "description": "Incoming client HTTP traffic from web browsers and mobile apps."
+      }
+    },
+    {
+      "id": "app_server",
+      "name": "Monolithic Web Server",
+      "type": "service",
+      "serviceRatePerReplica": 2500,
+      "replicas": 1,
+      "baseLatencyMs": 20,
+      "enabled": true,
+      "metadata": {
+        "description": "A single Node.js/Django compute instance handling both routing, business logic, and DB queries."
+      }
+    },
+    {
+      "id": "postgres_db",
+      "name": "PostgreSQL Database",
+      "type": "database",
+      "serviceRatePerReplica": 1000,
+      "replicas": 1,
+      "baseLatencyMs": 30,
+      "enabled": true,
+      "metadata": {
+        "description": "Single relational database on disk with no caching layer and no read-replicas."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_client_app",
+      "source": "client",
+      "target": "app_server"
+    },
+    {
+      "id": "e_app_db",
+      "source": "app_server",
+      "target": "postgres_db"
+    }
+  ]
+}

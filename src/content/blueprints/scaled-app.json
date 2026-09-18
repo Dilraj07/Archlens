@@ -1,0 +1,114 @@
+{
+  "id": "scaled-app",
+  "name": "Level 2: Scaled Web App (CDN + Cache + LB)",
+  "description": "Standard production 3-tier architecture with Edge CDN, Load Balancer, 3 stateless app servers, Redis cache, and SQL database.",
+  "entryNodeId": "client",
+  "exitNodeId": "sql_primary",
+  "metadata": {
+    "inspiredBy": "Modern mid-sized production web apps handling 50,000 to 200,000 active users.",
+    "disclaimer": "The CDN absorbs 85% of static traffic and Redis absorbs 80% of read queries, drastically protecting the database."
+  },
+  "nodes": [
+    {
+      "id": "client",
+      "name": "Global Users",
+      "type": "client",
+      "serviceRatePerReplica": 100000,
+      "replicas": 1,
+      "baseLatencyMs": 0,
+      "enabled": true,
+      "metadata": {
+        "description": "Global traffic hitting web, iOS, and Android applications."
+      }
+    },
+    {
+      "id": "cdn_edge",
+      "name": "Cloudflare CDN Edge",
+      "type": "cdn",
+      "serviceRatePerReplica": 80000,
+      "replicas": 1,
+      "baseLatencyMs": 8,
+      "enabled": true,
+      "hitRate": 0.85,
+      "metadata": {
+        "description": "Edge CDN serving cached static files and SSL termination in <10ms."
+      }
+    },
+    {
+      "id": "load_balancer",
+      "name": "Application Load Balancer",
+      "type": "load_balancer",
+      "serviceRatePerReplica": 50000,
+      "replicas": 2,
+      "baseLatencyMs": 2,
+      "enabled": true,
+      "metadata": {
+        "description": "Distributes HTTP requests evenly across the app server cluster using round-robin."
+      }
+    },
+    {
+      "id": "app_cluster",
+      "name": "Stateless App Servers",
+      "type": "service",
+      "serviceRatePerReplica": 4000,
+      "replicas": 3,
+      "baseLatencyMs": 15,
+      "enabled": true,
+      "metadata": {
+        "description": "Stateless compute nodes in an auto-scaling group (Node.js/Go)."
+      }
+    },
+    {
+      "id": "redis_cache",
+      "name": "Redis In-Memory Cache",
+      "type": "cache",
+      "serviceRatePerReplica": 30000,
+      "replicas": 1,
+      "baseLatencyMs": 1,
+      "enabled": true,
+      "hitRate": 0.80,
+      "metadata": {
+        "description": "In-memory RAM cache storing session tokens, hot catalog queries, and user feeds."
+      }
+    },
+    {
+      "id": "sql_primary",
+      "name": "PostgreSQL Database",
+      "type": "database",
+      "serviceRatePerReplica": 3500,
+      "replicas": 1,
+      "baseLatencyMs": 25,
+      "enabled": true,
+      "metadata": {
+        "description": "Relational transactional database storing persistent user and business data."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_client_cdn",
+      "source": "client",
+      "target": "cdn_edge"
+    },
+    {
+      "id": "e_cdn_lb",
+      "source": "cdn_edge",
+      "target": "load_balancer"
+    },
+    {
+      "id": "e_lb_app",
+      "source": "load_balancer",
+      "target": "app_cluster"
+    },
+    {
+      "id": "e_app_cache",
+      "source": "app_cluster",
+      "target": "redis_cache"
+    },
+    {
+      "id": "e_cache_db",
+      "source": "redis_cache",
+      "target": "sql_primary"
+    }
+  ]
+}

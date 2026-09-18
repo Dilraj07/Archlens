@@ -58,13 +58,13 @@ function computeNodePositions(graph: ArchGraph): Record<string, { x: number; y: 
     nodesByLayer[layer]!.push(nodeId);
   }
 
-  const LAYER_Y_SPACING = 150;
-  const NODE_X_SPACING = 250;
+  const LAYER_Y_SPACING = 160;
+  const NODE_X_SPACING = 270;
 
   for (const [layerStr, nodeIds] of Object.entries(nodesByLayer)) {
     const layer = Number(layerStr);
     const totalWidth = (nodeIds.length - 1) * NODE_X_SPACING;
-    const startX = -totalWidth / 2 + 350; // Center offset
+    const startX = -totalWidth / 2; // Perfectly centered at 0
 
     nodeIds.forEach((id, index) => {
       positions[id] = {
@@ -152,16 +152,17 @@ export const ArchCanvas: React.FC = () => {
   }, [activeBlueprint.edges, currentResult.criticalPath]);
 
   return (
-    <div className="w-full h-full relative bg-[#131313]">
+    <div className="absolute inset-0 bg-[#131313]">
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        onNodeClick={(_e, node) => selectNode(node.id)}
         onPaneClick={() => selectNode(null)}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.4}
-        maxZoom={1.5}
+        fitViewOptions={{ padding: 0.25 }}
+        minZoom={0.3}
+        maxZoom={1.8}
         proOptions={{ hideAttribution: true }}
       >
         <Background
