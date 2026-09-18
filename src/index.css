@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: #131313;
+    color: #ffffff;
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  /* Universal link hover according to The Verge spec */
+  a:hover {
+    color: #3860be !important;
+  }
+}
+
+/* Custom Scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #131313;
+}
+::-webkit-scrollbar-thumb {
+  background: #2d2d2d;
+  border-radius: 3px;
+  border: 1px solid #313131;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3cffd0;
+}
+
+/* React Flow Dark Theme Overrides */
+.react-flow {
+  background-color: #131313 !important;
+}
+.react-flow__pane {
+  cursor: grab;
+}
+.react-flow__pane:active {
+  cursor: grabbing;
+}
+.react-flow__handle {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  border: 1px solid #131313 !important;
+  background: #3cffd0 !important;
+}
+.react-flow__edge-path {
+  stroke-width: 2 !important;
+  transition: stroke 0.2s ease;
+}
+
+/* Particle animation for critical path edge */
+@keyframes dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.edge-flow-active {
+  stroke-dasharray: 5, 5;
+  animation: dash 1s linear infinite;
+}
+
+/* Pulse animation for degraded/critical nodes */
+@keyframes alertPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-alert {
+  animation: alertPulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
