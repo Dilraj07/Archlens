@@ -1,5 +1,14 @@
 # ArchLens · Adaptive System Design & Incident Simulator
 
+<p align="left">
+  <img src="https://img.shields.io/badge/Challenge-01%3A%20AI%20for%20Learning-blue?style=flat-square" alt="Challenge 01: AI for Learning" />
+  <img src="https://img.shields.io/badge/TypeScript-Strict%20Mode-blue?style=flat-square&logo=typescript" alt="TypeScript Strict" />
+  <img src="https://img.shields.io/badge/Tests-29%2F29%20Passing-brightgreen?style=flat-square&logo=vitest" alt="Vitest 29/29 Passing" />
+  <img src="https://img.shields.io/badge/Simulation-Deterministic%20M%2FM%2F1-success?style=flat-square" alt="Deterministic Engine" />
+  <img src="https://img.shields.io/badge/Design%20System-The%20Verge%202024-purple?style=flat-square" alt="The Verge Design System" />
+  <img src="https://img.shields.io/badge/Offline-100%25%20Functional-orange?style=flat-square" alt="Offline Ready" />
+</p>
+
 > *"Every tool lets you break a system. ArchLens teaches you to **debug** one."*  
 > **Challenge:** CodeMyFYP Hackathon 2026 · Challenge 01: AI for Learning  
 > **Core Architecture:** Deterministic Simulation Engine (Ground Truth) + Responsible AI Mentor + The Verge Design System
@@ -16,6 +25,71 @@ Students and engineers prepare for system design by reading static articles or c
 1. **No Pre-Commitment:** Users flip toggles without predicting outcomes; being *wrong* about a prediction is what forces deep mental-model updates.
 2. **AI Hallucinations:** Generic LLMs invent arbitrary numbers, hallucinate bottleneck causes, and lack mathematical grounding.
 3. **No Realistic Debugging:** Sandboxes train people to trigger failures they already know about. Real engineering demands debugging: seeing degraded symptoms (surging latency, 5xx errors) and reasoning back to the root cause under uncertainty.
+
+---
+
+## System Architecture
+
+ArchLens decouples the UI from a pure, mathematical simulation kernel and wraps the AI mentor behind strict, client-side numeric guardrails:
+
+```mermaid
+graph TD
+    subgraph UI_Layer [User Interface & Presentation]
+        Canvas["React Flow Topology Canvas (@xyflow/react)"]
+        Inspector["Glass Box Inspector & Hyperparameter Tuning"]
+        Audio["Voice AI Narrator (Web Speech API)"]
+        Studio["Design Studio (Drag-and-Drop Sandbox)"]
+    end
+
+    subgraph State_Layer [Reactive State Layer]
+        Store["Central Store (Zustand)"]
+    end
+
+    subgraph Core_Engine [Deterministic Ground Truth Engine (Pure TS)]
+        Topo["Topological DAG Sorter & Cycle Detector"]
+        Queue["M/M/1 Queuing Math & Utilization Engine"]
+        Diff["State Delta Computer (Baseline vs Overrides)"]
+        Grade["Deterministic Grader & SLO Evaluator"]
+        Leitner["Leitner-Box Spaced Repetition Scheduler"]
+    end
+
+    subgraph Guardrails [Responsible AI & Guardrails Layer]
+        LLM["AI Mentor (Groq / OpenAI Llama-3 / GPT-4)"]
+        Validator["Numeric Validator (±2% StateDelta Tolerance)"]
+        Spoiler["Spoiler Guard (Anti-Cheating Filter)"]
+        Fallback["100% Offline Deterministic Templates"]
+    end
+
+    subgraph Content_Layer [Declarative Schemas & Data]
+        Schemas["Runtime Zod Validation Schemas"]
+        Blueprints["Production Blueprints (Tatkal, Amazon, Netflix, Cricket)"]
+        Missions["Missions & Incident Scenarios"]
+    end
+
+    Canvas <--> Store
+    Inspector <--> Store
+    Studio <--> Store
+    Audio <-- Store
+    
+    Store --> Topo
+    Topo --> Queue
+    Queue --> Diff
+    Diff --> Grade
+    Store --> Leitner
+
+    Store --> LLM
+    Diff --> Validator
+    LLM --> Validator
+    Validator -->|Pass| Store
+    Validator -->|Fail or Offline| Fallback
+    Fallback --> Store
+    Spoiler --> LLM
+
+    Schemas --> Blueprints
+    Schemas --> Missions
+    Blueprints --> Store
+    Missions --> Store
+```
 
 ---
 
@@ -58,11 +132,18 @@ A full-featured visual architecture editor allowing learners and system architec
 
 ### 5. Voice AI Narration (Web Speech API)
 - Hands-free Socratic mentorship powered by native speech synthesis (`speechNarrator.ts`).
-- Provides spoken briefings during high-intensity incident simulations and real-time audio guidance through tutor explanations.
-- Features play, pause, resume, and rate/pitch controls with instant cancellation.
+- Spoken briefings during high-intensity incident simulations and real-time audio guidance through tutor explanations.
+- Complete playback controls (play, pause, resume, cancel) and speech rate/pitch options.
 
-### 6. Glass Box Transparency
-Unlike black-box simulators, the **Glass Box** inspector displays the exact M/M/1 queueing theory equations ($\lambda, \mu, \rho$, latency, drops) for any selected node.
+### 6. Glass Box Mathematical Transparency
+Unlike black-box simulators, the **Glass Box** inspector displays the exact M/M/1 queueing theory equations for any selected node:
+- **Traffic Intensity:**
+  $$\rho = \frac{\lambda}{c \cdot \mu}$$
+  *(where $\lambda$ is arrival rate, $\mu$ is service rate per replica, and $c$ is replica count)*
+- **Service Response Time (Queueing + Execution):**
+  $$W = \frac{1}{\mu - (\lambda / c)} + W_{\text{base}}$$
+- **Drop Probability Under Saturation ($\rho > 1$):**
+  $$P_{\text{drop}} = \max\left(0, 1 - \frac{1}{\rho}\right)$$
 
 ### 7. Spaced Retention & Daily Incident
 - 90-second incident variant targeting the learner's weakest concept.
@@ -79,9 +160,16 @@ Unlike black-box simulators, the **Glass Box** inspector displays the exact M/M/
 ArchLens features realistic topologies with authentic SVG company assets (`CompanyLogo.tsx`):
 1. **IRCTC Tatkal at 10 AM** (`tatkal.json`): 11-node architecture modeling the extreme 10 AM ticket surge, CDN bypass, Redis seat cache eviction, database bottleneck, and payment gateway fanout.
 2. **The Final Over (Live Cricket Streaming)** (`cricket.json`): 11-node architecture modeling CDN edge delivery, video segment transcoders, session cache stampede, and telemetry decoupling.
-3. **Amazon E-Commerce Flash Sale**: Microservice architecture handling lightning deals, inventory reservation, asynchronous cart checkout, and distributed database locking.
+3. **Amazon E-Commerce Hyperscale**: Microservice architecture handling lightning deals, inventory reservation, asynchronous cart checkout, and distributed database locking.
 4. **Netflix Video Streaming**: Global CDN distribution with edge compute, origin video transcoding pipelines, and user recommendation caches.
 5. **Authentic Vector Brand Library**: Integrated SVG marks for Amazon, Netflix, IRCTC, Hotstar, Redis, Apache Kafka, Stripe, Uber, Airbnb, Cloudflare, Discord, GitHub, LinkedIn, X, and YouTube.
+
+### Blueprint Showcase: Amazon E-Commerce Hyperscale
+*Interactive dynamic simulation showing real-time traffic surge, node utilization, latency spikes, and hyperparameter tuning across an 11-node microservices topology.*
+
+<p align="center">
+  <img src="./docs/assets/amazon-architecture.png" alt="Amazon E-Commerce Architecture Simulation on ArchLens" width="100%" />
+</p>
 
 ---
 
@@ -109,6 +197,47 @@ Judges evaluate Responsible AI rigorously (15% of score). ArchLens enforces non-
 | **AI Grounding Guardrails** | No AI | Unchecked | **Yes (±2% Delta Validator + Spoiler Guard)** |
 | **Spaced Repetition** | No | No | **Yes (Leitner-Box Daily Incidents)** |
 | **Works Offline / No Key** | Yes | Fails | **Yes (100% Deterministic Fallback)** |
+
+---
+
+## Codebase Architecture & Modularity
+
+The codebase is strictly modularized with clean domain separation:
+
+```
+src/
+├── engine/              # Pure TypeScript M/M/1 simulation engine (0 UI dependencies)
+│   ├── simulate.ts      # Core simulation runner
+│   ├── topology.ts      # Topological DAG sorting & cycle detection
+│   ├── nodeModels.ts    # Queueing theory math for each node type
+│   ├── diff.ts          # State delta computation (before vs after)
+│   ├── grade.ts         # Graders for predictions and incident diagnosis
+│   └── scheduler.ts     # Leitner-box spaced repetition algorithm
+├── tutor/               # Responsible AI mentor & defensive guardrails
+│   ├── tutorClient.ts   # Multi-provider client (Groq / OpenAI)
+│   ├── validate.ts      # Client-side ±2% numeric verification
+│   ├── spoilerGuard.ts  # Anti-cheat spoiler detection filter
+│   └── templates.ts     # 100% offline verified fallback responses
+├── content/             # Declarative system architectures & missions
+│   ├── blueprints/      # JSON topologies (tatkal, cricket, amazon, netflix)
+│   ├── missions/        # Predict-Break-Fix guided missions
+│   ├── incidents/       # Fog-of-War incident scenarios
+│   └── schemas.ts       # Runtime Zod validation schemas
+├── features/            # Feature-sliced UI components
+│   ├── architectures/   # Preset explorer & guided stage tours
+│   ├── studio/          # Design Studio sandbox builder
+│   ├── canvas/          # Interactive React Flow node canvas
+│   ├── glassbox/        # Queueing theory math inspector panel
+│   ├── incident/        # Production incident player & post-mortem
+│   ├── mission/         # 6-step guided mission player
+│   ├── mastery/         # Spaced retention mastery dashboard
+│   ├── landing/         # Verge landing page & interactive loop
+│   └── learn/           # System design concept hub & component catalog
+├── store/               # Central reactive state management
+│   └── useArchStore.ts  # Zustand store with selector-based subscriptions
+└── utils/               # Shared cross-cutting utilities
+    └── speechNarrator.ts # Web Speech API synthesizer
+```
 
 ---
 
@@ -156,6 +285,18 @@ npm test
 npm run build
 # Compiles TypeScript and bundles production assets via Vite
 ```
+
+---
+
+## Hackathon Evaluation Alignment (Challenge 01: AI for Learning)
+
+| Hackathon Criterion | ArchLens Implementation |
+|---|---|
+| **Responsible AI (15%)** | Non-negotiable client-side verification (`validate.ts`). The LLM is never trusted with numbers; answers deviating $> 2\%$ from the deterministic engine are rejected. `spoilerGuard.ts` prevents revealing root causes before student diagnosis. |
+| **Pedagogical Innovation** | Predict-Before-Seeing loop forces cognitive commitment. Incident mode with Fog-of-War and inspection budgets trains realistic root-cause debugging under uncertainty. |
+| **Mathematical Grounding** | Replaces black-box guessing with authentic M/M/1 queuing theory formulas ($\lambda, \mu, \rho$, latency, drops) visible in the Glass Box panel. |
+| **Offline Resilience** | Zero mandatory cloud dependencies. Fully offline-capable via deterministic template fallbacks. |
+| **Technical Polish** | Zero-error strict TypeScript, 29 passing Vitest tests, The Verge 2024 design system, and authentic SVG company brand assets. |
 
 ---
 
