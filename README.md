@@ -34,18 +34,18 @@ ArchLens decouples the UI from a pure, mathematical simulation kernel and wraps 
 
 ```mermaid
 graph TD
-    subgraph UI_Layer [User Interface & Presentation]
+    subgraph UI_Layer ["User Interface & Presentation"]
         Canvas["React Flow Topology Canvas (@xyflow/react)"]
         Inspector["Glass Box Inspector & Hyperparameter Tuning"]
         Audio["Voice AI Narrator (Web Speech API)"]
         Studio["Design Studio (Drag-and-Drop Sandbox)"]
     end
 
-    subgraph State_Layer [Reactive State Layer]
+    subgraph State_Layer ["Reactive State Layer"]
         Store["Central Store (Zustand)"]
     end
 
-    subgraph Core_Engine [Deterministic Ground Truth Engine (Pure TS)]
+    subgraph Core_Engine ["Deterministic Ground Truth Engine (Pure TS)"]
         Topo["Topological DAG Sorter & Cycle Detector"]
         Queue["M/M/1 Queuing Math & Utilization Engine"]
         Diff["State Delta Computer (Baseline vs Overrides)"]
@@ -53,14 +53,14 @@ graph TD
         Leitner["Leitner-Box Spaced Repetition Scheduler"]
     end
 
-    subgraph Guardrails [Responsible AI & Guardrails Layer]
+    subgraph Guardrails ["Responsible AI & Guardrails Layer"]
         LLM["AI Mentor (Groq / OpenAI Llama-3 / GPT-4)"]
         Validator["Numeric Validator (±2% StateDelta Tolerance)"]
         Spoiler["Spoiler Guard (Anti-Cheating Filter)"]
         Fallback["100% Offline Deterministic Templates"]
     end
 
-    subgraph Content_Layer [Declarative Schemas & Data]
+    subgraph Content_Layer ["Declarative Schemas & Data"]
         Schemas["Runtime Zod Validation Schemas"]
         Blueprints["Production Blueprints (Tatkal, Amazon, Netflix, Cricket)"]
         Missions["Missions & Incident Scenarios"]
