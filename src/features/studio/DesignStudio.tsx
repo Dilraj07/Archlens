@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   ReactFlow,
   Background,
@@ -34,6 +34,9 @@ import {
   RotateCcw,
   Sparkles,
   Info,
+  AlertTriangle,
+  FilePlus,
+  Zap,
 } from 'lucide-react';
 
 const TYPE_ICONS: Record<string, React.ElementType> = {
@@ -217,6 +220,37 @@ export const DesignStudio: React.FC = () => {
 
   const [trafficInput, setTrafficInput] = useState(studioTraffic || 2500);
 
+  // First-open starter picker — show once per session if the user hasn't picked yet.
+  const [showStarterPicker, setShowStarterPicker] = useState(true);
+
+  // Rolling latency history for the toolbar sparkline
+  const [latencyHistory, setLatencyHistory] = useState<number[]>([]);
+  const lastSampleRef = useRef<number>(0);
+  useEffect(() => {
+    if (!studioSimResult) return;
+    const now = performance.now();
+    if (now - lastSampleRef.current < 100) return;
+    lastSampleRef.current = now;
+    setLatencyHistory((h) => {
+      const v = studioSimResult.system.userLatencyMs;
+      return h.length >= 60 ? [...h.slice(-59), v] : [...h, v];
+    });
+  }, [studioSimResult]);
+
+  const sparkPath = useMemo(() => {
+    if (latencyHistory.length < 2) return '';
+    const W = 120, H = 32, PAD = 2;
+    const max = Math.max(300, ...latencyHistory);
+    const step = (W - PAD * 2) / (latencyHistory.length - 1);
+    return latencyHistory
+      .map((v, i) => {
+        const x = PAD + i * step;
+        const y = H - PAD - (v / max) * (H - PAD * 2);
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+  }, [latencyHistory]);
+
   // ── CONTROLLED NODES STATE ──────────────────────────
   // React Flow requires nodes to live in local React state.
   // applyNodeChanges handles all drag/select/remove events correctly.
@@ -278,18 +312,65 @@ export const DesignStudio: React.FC = () => {
     });
   }, [studioGraph.nodes, studioSimResult, studioSelectedNodeId]);
 
-  // ── SYNC: store edges → rfEdges ──────────────────────
+  // Flow-pulse: when user hits Simulate we boost animation for ~2s so the "run" feels alive.
+  const [flowPulse, setFlowPulse] = useState(false);
+  const pulseTimer = useRef<number | null>(null);
+  const triggerFlowPulse = useCallback(() => {
+    setFlowPulse(true);
+    if (pulseTimer.current) window.clearTimeout(pulseTimer.current);
+    pulseTimer.current = window.setTimeout(() => setFlowPulse(false), 2000);
+  }, []);
+  useEffect(() => () => { if (pulseTimer.current) window.clearTimeout(pulseTimer.current); }, []);
+
+  // ── SYNC: store edges → rfEdges (dynamic color/width/animation from downstream health) ──
   useEffect(() => {
     setRfEdges(
-      studioGraph.edges.map((e) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        animated: Boolean(studioSimResult),
-        style: { stroke: '#3cffd0', strokeWidth: 2 },
-      }))
+      studioGraph.edges.map((e) => {
+        const targetMetrics = studioSimResult?.nodes[e.target];
+        const util = targetMetrics?.utilization ?? 0;
+        const health = targetMetrics?.health;
+
+        let stroke = '#3cffd0';
+        let strokeWidth = 2;
+        let animated = false;
+        let className: string | undefined;
+
+        if (!studioSimResult) {
+          stroke = '#444';
+          strokeWidth = 1.5;
+        } else if (health === 'overloaded') {
+          stroke = '#ff3366';
+          strokeWidth = 4;
+          animated = true;
+          className = 'edge-flow-active edge-overloaded';
+        } else if (health === 'degraded') {
+          stroke = '#ffb703';
+          strokeWidth = 3;
+          animated = true;
+          className = 'edge-flow-active';
+        } else if (util > 0.05) {
+          stroke = '#3cffd0';
+          strokeWidth = 2 + Math.min(1.5, util * 2);
+          animated = true;
+          className = 'edge-flow-active';
+        }
+
+        if (flowPulse && !className) {
+          animated = true;
+          className = 'edge-flow-active';
+        }
+
+        return {
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          animated,
+          className,
+          style: { stroke, strokeWidth },
+        };
+      })
     );
-  }, [studioGraph.edges, studioSimResult]);
+  }, [studioGraph.edges, studioSimResult, flowPulse]);
 
   // ── NODE CHANGE HANDLER (drag, select, remove) ───────
   const handleNodesChange = useCallback(
@@ -410,7 +491,64 @@ export const DesignStudio: React.FC = () => {
   }, [studioGraph, studioSimResult]);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#131313] text-white overflow-hidden select-none">
+    <div className="flex-1 flex flex-col h-full bg-[#131313] text-white overflow-hidden select-none relative">
+      {/* First-open starter picker overlay */}
+      {showStarterPicker && (
+        <div className="absolute inset-0 z-50 bg-[#0a0a0a]/85 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="max-w-2xl w-full bg-[#131313] border border-[#3cffd0]/30 rounded-20px p-6 shadow-[0_0_40px_rgba(60,255,208,0.15)]">
+            <span className="text-[10px] font-mono uppercase tracking-verge-nano text-[#3cffd0] font-bold block">
+              Design Studio
+            </span>
+            <h3 className="text-2xl font-display font-black tracking-wider text-white mt-1 mb-2">
+              How do you want to start?
+            </h3>
+            <p className="text-sm text-[#949494] mb-5">
+              Build a system from scratch, or start with a working base and iterate on it.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                onClick={() => { handleLoadTemplate('empty'); setLatencyHistory([]); setShowStarterPicker(false); }}
+                className="text-left p-4 rounded-16px bg-[#181818] hover:bg-[#1e1e1e] border border-[#3cffd0]/40 hover:border-[#3cffd0] transition-all group"
+              >
+                <FilePlus className="w-5 h-5 text-[#3cffd0] mb-2" />
+                <div className="text-white font-bold text-sm font-mono uppercase tracking-verge-mono">Blank Canvas</div>
+                <div className="text-[11px] text-[#949494] mt-1 leading-relaxed">
+                  Just a Client node. Add components one by one and wire them yourself.
+                </div>
+              </button>
+              <button
+                onClick={() => { handleLoadTemplate('simple-app'); setLatencyHistory([]); setShowStarterPicker(false); }}
+                className="text-left p-4 rounded-16px bg-[#181818] hover:bg-[#1e1e1e] border border-[#313131] hover:border-[#3cffd0]/60 transition-all"
+              >
+                <Layers className="w-5 h-5 text-[#3cffd0] mb-2" />
+                <div className="text-white font-bold text-sm font-mono uppercase tracking-verge-mono">2-Tier Web App</div>
+                <div className="text-[11px] text-[#949494] mt-1 leading-relaxed">
+                  Client → App Server → DB. Great for exploring what breaks under load.
+                </div>
+              </button>
+              <button
+                onClick={() => { handleLoadTemplate('scaled-app'); setLatencyHistory([]); setShowStarterPicker(false); }}
+                className="text-left p-4 rounded-16px bg-[#181818] hover:bg-[#1e1e1e] border border-[#313131] hover:border-[#3cffd0]/60 transition-all"
+              >
+                <Server className="w-5 h-5 text-[#3cffd0] mb-2" />
+                <div className="text-white font-bold text-sm font-mono uppercase tracking-verge-mono">3-Tier + Cache</div>
+                <div className="text-[11px] text-[#949494] mt-1 leading-relaxed">
+                  CDN + LB + App servers + Redis + DB. Production-shaped starting point.
+                </div>
+              </button>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setShowStarterPicker(false)}
+                className="text-[11px] font-mono text-[#666] hover:text-white uppercase tracking-verge-mono"
+              >
+                Keep current graph →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Toolbar */}
       <div className="bg-[#131313] border-b border-[#313131] px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 shrink-0">
         <div>
@@ -423,7 +561,7 @@ export const DesignStudio: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 font-mono">
-          {/* Traffic slider */}
+          {/* Traffic slider — auto-simulates on release */}
           <div className="flex items-center gap-2 bg-[#181818] border border-[#313131] px-3 py-1.5 rounded-12px text-xs uppercase tracking-verge-mono">
             <span className="text-[#949494]">Traffic:</span>
             <input
@@ -436,18 +574,52 @@ export const DesignStudio: React.FC = () => {
                 const val = Number(e.target.value);
                 setTrafficInput(val);
                 useArchStore.setState({ studioTraffic: val });
+                simulateStudio();
               }}
               className="w-24 accent-[#3cffd0] cursor-pointer h-1.5 bg-[#2d2d2d] rounded"
             />
             <span className="text-[#3cffd0] font-bold">{trafficInput.toLocaleString()} req/s</span>
           </div>
 
+          {/* Live telemetry: latency sparkline + bottleneck badge */}
+          {studioSimResult && (
+            <>
+              <div className="flex items-center gap-2 bg-[#181818] border border-[#313131] px-3 py-1 rounded-12px text-[11px] font-mono">
+                <span className="text-[#666]">Latency</span>
+                <span className={`font-bold ${
+                  studioSimResult.system.userLatencyMs > 300 ? 'text-[#ff3366]'
+                  : studioSimResult.system.userLatencyMs > 150 ? 'text-[#ffb703]' : 'text-[#3cffd0]'
+                }`}>{Math.round(studioSimResult.system.userLatencyMs)} ms</span>
+                {sparkPath && (
+                  <svg width="120" height="32">
+                    <path
+                      d={sparkPath}
+                      fill="none"
+                      stroke={studioSimResult.system.userLatencyMs > 300 ? '#ff3366'
+                        : studioSimResult.system.userLatencyMs > 150 ? '#ffb703' : '#3cffd0'}
+                      strokeWidth="1.5"
+                    />
+                  </svg>
+                )}
+              </div>
+              {studioSimResult.system.bottleneckNodeId && studioSimResult.system.status !== 'healthy' && (
+                <div className="bg-[#181818] border border-[#ff3366]/50 px-2.5 py-1 rounded-12px text-[11px] font-mono flex items-center gap-1.5 animate-alert">
+                  <AlertTriangle className="w-3 h-3 text-[#ff3366]" />
+                  <span className="text-[#666]">Bottleneck</span>
+                  <span className="font-bold text-[#ff3366] truncate max-w-[140px]">
+                    {studioGraph.nodes.find(n => n.id === studioSimResult.system.bottleneckNodeId)?.name ?? '—'}
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+
           <button
-            onClick={simulateStudio}
-            className="bg-[#3cffd0] hover:bg-white text-black font-mono uppercase tracking-verge-mono font-bold text-xs px-5 py-2 rounded-24px transition-all flex items-center gap-1.5"
+            onClick={() => { simulateStudio(); triggerFlowPulse(); }}
+            className={`bg-[#3cffd0] hover:bg-white text-black font-mono uppercase tracking-verge-mono font-bold text-xs px-5 py-2 rounded-24px transition-all flex items-center gap-1.5 ${flowPulse ? 'ring-2 ring-[#3cffd0]/60 shadow-[0_0_18px_rgba(60,255,208,0.6)]' : ''}`}
           >
-            <Play className="w-3.5 h-3.5 fill-black" />
-            Simulate Traffic
+            {flowPulse ? <Zap className="w-3.5 h-3.5 fill-black animate-pulse" /> : <Play className="w-3.5 h-3.5 fill-black" />}
+            {flowPulse ? 'Simulating…' : 'Simulate Traffic'}
           </button>
 
           <button
@@ -504,17 +676,24 @@ export const DesignStudio: React.FC = () => {
           {/* Starter Topologies */}
           <div className="pt-3 border-t border-[#313131] space-y-2">
             <span className="text-[10px] font-mono uppercase tracking-verge-nano text-[#3cffd0] font-bold block">
-              Starter Topologies
+              Start From
             </span>
             <div className="grid grid-cols-1 gap-1.5 text-xs font-mono uppercase tracking-verge-mono">
               <button
-                onClick={() => handleLoadTemplate('simple-app')}
+                onClick={() => { handleLoadTemplate('empty'); setLatencyHistory([]); }}
+                className="text-left px-3 py-1.5 rounded-12px bg-[#181818] hover:bg-[#252525] text-white border border-[#3cffd0]/30 flex items-center gap-2"
+              >
+                <FilePlus className="w-3.5 h-3.5 text-[#3cffd0]" />
+                Blank Canvas
+              </button>
+              <button
+                onClick={() => { handleLoadTemplate('simple-app'); setLatencyHistory([]); }}
                 className="text-left px-3 py-1.5 rounded-12px bg-[#181818] hover:bg-[#252525] text-[#e9e9e9] border border-[#313131]"
               >
                 2-Tier Web App
               </button>
               <button
-                onClick={() => handleLoadTemplate('scaled-app')}
+                onClick={() => { handleLoadTemplate('scaled-app'); setLatencyHistory([]); }}
                 className="text-left px-3 py-1.5 rounded-12px bg-[#181818] hover:bg-[#252525] text-[#e9e9e9] border border-[#313131]"
               >
                 3-Tier with Cache

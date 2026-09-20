@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import confetti from 'canvas-confetti';
 import {
   AlertCircle,
@@ -7,6 +7,13 @@ import {
   Sliders,
   Check,
   Flame,
+  Lightbulb,
+  BookOpen,
+  Target,
+  Zap as ZapIcon,
+  ShieldCheck,
+  GitBranch,
+  Server as ServerIcon,
 } from 'lucide-react';
 import { useArchStore } from '../../store/useArchStore';
 import { VergeBadge, VergeButton, VergeCard } from '../../components/ui/VergePrimitives';
@@ -29,8 +36,49 @@ export const MissionPlayer: React.FC = () => {
   const startIncident = useArchStore((s) => s.startIncident);
 
   const [sliderVal, setSliderVal] = useState(50);
+  const [hintLevel, setHintLevel] = useState(0); // 0 = hidden, 1 = warm, 2 = strong
+
+  // Reset hint when the mission changes
+  React.useEffect(() => { setHintLevel(0); }, [activeMission?.id]);
+
+  const activeBlueprint = useArchStore((s) => s.activeBlueprint);
+
+  const bottleneckId = currentResult.system.bottleneckNodeId;
+  const bottleneckNode = useMemo(
+    () => (bottleneckId ? activeBlueprint.nodes.find((n) => n.id === bottleneckId) : null),
+    [bottleneckId, activeBlueprint]
+  );
+  const bottleneckMetrics = bottleneckId ? currentResult.nodes[bottleneckId] : null;
+
+  const fixTypeMeta: Record<string, { label: string; color: string; Icon: React.ElementType }> = {
+    enable:         { label: 'Re-enable',     color: '#3cffd0', Icon: ShieldCheck },
+    add_replica:    { label: 'Scale out',     color: '#5200ff', Icon: ServerIcon },
+    restore_param:  { label: 'Tune param',    color: '#ffb703', Icon: Sliders },
+    route_traffic:  { label: 'Reroute',       color: '#3cffd0', Icon: GitBranch },
+  };
 
   if (!activeMission) return null;
+
+  // Progressive hint text derived from the mission's prediction kind
+  const hintText = (() => {
+    if (activeMission.prediction.kind === 'select_node') {
+      if (hintLevel === 1) return 'Think about which component sits on the critical path AND has the lowest capacity headroom relative to peak traffic.';
+      if (hintLevel === 2) {
+        const opts = activeMission.prediction.options ?? [];
+        const layerHint = opts.find((id) => /db|database|cache|queue/i.test(id))
+          ? 'It is a stateful component (database / cache / queue), not a stateless one — those tend to become the primary bottleneck under sustained load.'
+          : 'Focus on the component that receives fan-in from many upstream nodes — the funnel point.';
+        return layerHint;
+      }
+    } else if (activeMission.prediction.kind === 'slider') {
+      if (hintLevel === 1) return 'Ratio-reason: peak / baseline is roughly the load multiplier. What percentage would you expect a saturated queue to reflect?';
+      if (hintLevel === 2) return 'When utilization exceeds 100%, the queue backs up until requests time out — the error rate curves sharply, not linearly.';
+    } else {
+      if (hintLevel === 1) return 'Ask: does an async buffer (queue) sit between the slow component and the caller? If yes, the caller is decoupled.';
+      if (hintLevel === 2) return 'Kafka / queues absorb write bursts. A synchronous DB write path does not — the caller waits until the DB responds.';
+    }
+    return '';
+  })();
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value);
@@ -66,6 +114,20 @@ export const MissionPlayer: React.FC = () => {
           </VergeBadge>
         </div>
         <h2 className="text-xl font-bold tracking-tight text-white">{activeMission.title}</h2>
+        {/* Concept chips — always visible so learners know what topic this teaches */}
+        {activeMission.concepts?.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {activeMission.concepts.map((c) => (
+              <span
+                key={c}
+                className="px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-verge-nano bg-[#5200ff]/15 text-[#c3b0ff] border border-[#5200ff]/40 flex items-center gap-1"
+              >
+                <BookOpen className="w-2.5 h-2.5" />
+                {c}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* STEP 1: CONTEXT BRIEF */}
@@ -177,6 +239,31 @@ export const MissionPlayer: React.FC = () => {
                 </div>
               )}
             </VergeCard>
+
+            {/* Progressive Hint — 2 tiers before revealing the answer */}
+            <div className="bg-[#131313] border border-[#313131] rounded-16px p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-verge-nano text-[#ffb703] font-bold flex items-center gap-1">
+                  <Lightbulb className="w-3 h-3" /> Stuck? {hintLevel > 0 && `Tier ${hintLevel}/2`}
+                </span>
+                {hintLevel < 2 && (
+                  <button
+                    onClick={() => setHintLevel((l) => Math.min(2, l + 1))}
+                    className="text-[10px] font-mono uppercase tracking-verge-nano text-[#3cffd0] hover:text-white"
+                  >
+                    {hintLevel === 0 ? 'Show hint' : 'Bigger hint →'}
+                  </button>
+                )}
+              </div>
+              {hintLevel > 0 && (
+                <p className="text-[11px] text-[#e9e9e9] leading-relaxed mt-2">{hintText}</p>
+              )}
+              {hintLevel === 0 && (
+                <p className="text-[10px] text-[#666] mt-1">
+                  Committing without hints teaches faster — but tap for a nudge if you need one.
+                </p>
+              )}
+            </div>
           </div>
 
           <VergeButton
@@ -254,18 +341,59 @@ export const MissionPlayer: React.FC = () => {
               <p className="text-xs text-white mt-1 leading-relaxed">{predictionGrade?.explanation}</p>
             </div>
 
-            {/* AI Tutor Card */}
-            <div className="bg-[#131313] border border-[#313131] rounded-20px p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono text-[#3cffd0] uppercase tracking-verge-nano">
-                  AI Architecture Tutor
+            {/* Dynamic Bottleneck Analysis — actual sim numbers, plain-English */}
+            <div className="bg-[#131313] border border-[#313131] rounded-20px p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono text-[#3cffd0] uppercase tracking-verge-nano flex items-center gap-1">
+                  <Target className="w-3 h-3" /> Bottleneck Analysis
                 </span>
-                <VergeBadge variant="verified">✓ verified against simulation</VergeBadge>
+                <VergeBadge variant="verified">✓ from simulation</VergeBadge>
               </div>
-              <p className="text-xs text-[#e9e9e9] leading-relaxed font-sans">
-                At {currentResult.system.totalArrivalRate} req/s, the critical path bottleneck suffered capacity exhaustion.
-                Notice how queueing delay escalated according to the M/M/1 curve as utilization exceeded 1.0.
-              </p>
+
+              {bottleneckNode && bottleneckMetrics ? (
+                <>
+                  <div className="p-2.5 bg-[#181818] rounded-12px border border-[#ff3366]/30">
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="text-[#949494]">Failing component:</span>
+                      <span className="text-[#ff3366] font-bold">{bottleneckNode.name}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-mono mt-1">
+                      <span className="text-[#949494]">Utilization ρ:</span>
+                      <span className="text-white font-bold">{(bottleneckMetrics.utilization * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-mono mt-1">
+                      <span className="text-[#949494]">Node latency:</span>
+                      <span className="text-white font-bold">{bottleneckMetrics.latencyMs.toFixed(0)} ms</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[#e9e9e9] leading-relaxed">
+                    At <span className="font-bold text-white">{Math.round(currentResult.system.totalArrivalRate)} req/s</span>,
+                    the <span className="font-bold text-[#ff3366]">{bottleneckNode.name}</span> is running at
+                    {' '}{(bottleneckMetrics.utilization * 100).toFixed(0)}% utilization. As ρ approaches 1, average wait time
+                    grows as <span className="font-mono">1 / (1 − ρ)</span> — so a jump from 80% → 95% multiplies latency by ~4×.
+                    That is why the pipe into it turned red on the canvas.
+                  </p>
+                </>
+              ) : (
+                <p className="text-[11px] text-[#e9e9e9] leading-relaxed">
+                  System is holding — no single node is saturated. The critical path is the tour highlight.
+                </p>
+              )}
+
+              {/* Contrast the user's guess vs actual (select_node only) */}
+              {activeMission.prediction.kind === 'select_node' && typeof userPrediction === 'string' && bottleneckNode && (
+                <div className={`p-2.5 rounded-12px border text-[11px] leading-relaxed ${
+                  userPrediction === bottleneckNode.id
+                    ? 'bg-[#3cffd0]/10 border-[#3cffd0]/40 text-[#e9e9e9]'
+                    : 'bg-[#ffb703]/10 border-[#ffb703]/40 text-[#e9e9e9]'
+                }`}>
+                  {userPrediction === bottleneckNode.id ? (
+                    <span>You picked <span className="font-bold text-[#3cffd0]">{userPrediction}</span> — and that is exactly where the queue overflowed. Nice pattern-matching.</span>
+                  ) : (
+                    <span>You picked <span className="font-bold">{userPrediction}</span> but the simulator showed <span className="font-bold text-[#ff3366]">{bottleneckNode.id}</span> failed first. The tell: it had the lowest capacity headroom on the critical path.</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -313,6 +441,9 @@ export const MissionPlayer: React.FC = () => {
               <div className="space-y-2">
                 {activeMission.fix.palette.map((fix) => {
                   const isApplied = appliedFixIds.includes(fix.id);
+                  const meta = fixTypeMeta[fix.type] ?? fixTypeMeta.enable;
+                  const MetaIcon = meta.Icon;
+                  const targetsBottleneck = bottleneckNode && fix.targetNodeId === bottleneckNode.id;
                   return (
                     <div
                       key={fix.id}
@@ -323,17 +454,31 @@ export const MissionPlayer: React.FC = () => {
                           : 'bg-[#131313] border-[#313131] hover:border-white text-[#e9e9e9]'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold font-mono">{fix.label}</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="text-[9px] font-mono font-bold uppercase tracking-verge-nano px-1.5 py-0.5 rounded-full border flex items-center gap-1 shrink-0"
+                            style={{ color: meta.color, borderColor: `${meta.color}66`, background: '#181818' }}
+                          >
+                            <MetaIcon className="w-2.5 h-2.5" />
+                            {meta.label}
+                          </span>
+                          <span className="text-xs font-bold font-mono truncate">{fix.label}</span>
+                        </div>
                         {isApplied ? (
-                          <span className="text-xs font-mono font-bold text-[#3cffd0] flex items-center gap-1">
+                          <span className="text-xs font-mono font-bold text-[#3cffd0] flex items-center gap-1 shrink-0">
                             <Check className="w-3.5 h-3.5" /> APPLIED
                           </span>
                         ) : (
-                          <span className="text-[10px] font-mono text-[#949494]">APPLY</span>
+                          <span className="text-[10px] font-mono text-[#949494] shrink-0">APPLY</span>
                         )}
                       </div>
                       <p className="text-[11px] text-[#949494] mt-1 leading-snug">{fix.description}</p>
+                      {targetsBottleneck && !isApplied && (
+                        <p className="text-[10px] font-mono text-[#ffb703] mt-1.5 flex items-center gap-1">
+                          <ZapIcon className="w-2.5 h-2.5" /> Targets the current bottleneck
+                        </p>
+                      )}
                     </div>
                   );
                 })}

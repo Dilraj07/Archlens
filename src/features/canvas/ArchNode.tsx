@@ -23,6 +23,8 @@ export interface ArchNodeData {
   metrics?: NodeMetrics;
   isMaskedInIncident?: boolean;
   isCriticalPath?: boolean;
+  isTourActive?: boolean;
+  isTourDimmed?: boolean;
 }
 
 const TYPE_ICONS: Record<NodeType, React.ElementType> = {
@@ -40,7 +42,7 @@ const TYPE_ICONS: Record<NodeType, React.ElementType> = {
 
 export const ArchNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as unknown as ArchNodeData;
-  const { spec, metrics, isMaskedInIncident } = nodeData;
+  const { spec, metrics, isMaskedInIncident, isTourActive, isTourDimmed } = nodeData;
 
   const selectNode = useArchStore((s) => s.selectNode);
   const inspectNodeInIncident = useArchStore((s) => s.inspectNodeInIncident);
@@ -102,11 +104,24 @@ export const ArchNode = memo(({ id, data, selected }: NodeProps) => {
     borderClass += ' ring-2 ring-white ring-offset-2 ring-offset-[#131313]';
   }
 
+  let tourEffectClass = '';
+  if (isTourActive) {
+    tourEffectClass = 'ring-4 ring-[#3cffd0] shadow-[0_0_30px_rgba(60,255,208,0.5)] scale-[1.04] !border-[#3cffd0] z-30';
+  } else if (isTourDimmed) {
+    tourEffectClass = 'opacity-30 grayscale-[50%] scale-[0.97] transition-all duration-300';
+  }
+
   return (
     <div
       onClick={handleClick}
-      className={`min-w-[210px] rounded-20px p-3.5 border transition-all duration-200 cursor-pointer ${borderClass} relative group select-none`}
+      className={`min-w-[210px] rounded-20px p-3.5 border transition-all duration-300 cursor-pointer ${borderClass} ${tourEffectClass} relative group select-none`}
     >
+      {/* Active Tour Tier Badge */}
+      {isTourActive && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#3cffd0] text-black text-[9px] font-mono font-black uppercase px-2.5 py-0.5 rounded-full shadow-[0_0_12px_#3cffd0] tracking-verge-nano z-40 whitespace-nowrap animate-pulse">
+          ACTIVE LEVEL
+        </div>
+      )}
       {/* Top Handle */}
       <Handle
         type="target"

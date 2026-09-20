@@ -31,6 +31,8 @@ export interface TutorMessage {
 interface ArchState {
   // Navigation & Active Content
   view: AppView;
+  learnTab: 'concepts' | 'catalog';
+  setLearnTab: (tab: 'concepts' | 'catalog') => void;
   activeBlueprintId: string;
   activeBlueprint: ArchGraph;
   activeMission: Mission | null;
@@ -51,6 +53,11 @@ interface ArchState {
   setTrafficLoad: (usersConcurrent: number, requestsPerUserPerSec?: number) => void;
   updateNodeConfig: (nodeId: string, updates: Partial<NodeSpec>) => void;
   selectArchitecture: (blueprintId: string) => void;
+
+  // Guided Architecture Tour
+  tourActiveStep: number | null;
+  tourActiveNodeIds: string[] | null;
+  setTourStep: (step: number | null, nodeIds: string[] | null) => void;
 
   // Design Studio (Sandbox) State
   studioGraph: ArchGraph;
@@ -200,6 +207,7 @@ export const useArchStore = create<ArchState>((set, get) => {
 
   return {
     view: 'landing',
+    learnTab: 'concepts',
     activeBlueprintId: 'simple-app',
     activeBlueprint: defaultBlueprint,
     activeMission: null,
@@ -212,6 +220,11 @@ export const useArchStore = create<ArchState>((set, get) => {
     stateDelta: null,
     activeOverrides: {},
     isSimulating: true,
+
+    // Guided Architecture Tour
+    tourActiveStep: null,
+    tourActiveNodeIds: null,
+    setTourStep: (step, nodeIds) => set({ tourActiveStep: step, tourActiveNodeIds: nodeIds }),
 
     // Guided Mission Flow State
     missionStep: 'brief',
@@ -283,10 +296,13 @@ export const useArchStore = create<ArchState>((set, get) => {
         stateDelta: null,
         activeOverrides: {},
         selectedNodeId: bp.nodes[1]?.id || bp.nodes[0]?.id || null,
+        tourActiveStep: null,
+        tourActiveNodeIds: null,
       });
     },
 
     setView: (view) => set({ view }),
+    setLearnTab: (learnTab) => set({ learnTab }),
 
     selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
 
@@ -304,6 +320,8 @@ export const useArchStore = create<ArchState>((set, get) => {
         stateDelta: null,
         activeOverrides: {},
         selectedNodeId: null,
+        tourActiveStep: null,
+        tourActiveNodeIds: null,
       });
     },
 
@@ -470,6 +488,36 @@ export const useArchStore = create<ArchState>((set, get) => {
     },
 
     loadStudioTemplate: (blueprintId) => {
+      // Special-case: 'empty' starts with a single Client node so the canvas is a blank slate
+      // without breaking the simulator (which expects at least one source).
+      if (blueprintId === 'empty') {
+        const emptyGraph: ArchGraph = {
+          id: 'studio-empty',
+          name: 'Blank Canvas',
+          description: 'Start from scratch and build your own architecture.',
+          entryNodeId: 'node_client',
+          nodes: [
+            {
+              id: 'node_client',
+              type: 'client',
+              name: 'Web Users',
+              replicas: 1,
+              serviceRatePerReplica: 100000,
+              baseLatencyMs: 0,
+              enabled: true,
+            },
+          ],
+          edges: [],
+        };
+        const sim = simulate(emptyGraph, { usersConcurrent: 2500, requestsPerUserPerSec: 1 });
+        set({
+          studioGraph: emptyGraph,
+          studioTraffic: 2500,
+          studioSimResult: sim,
+          studioSelectedNodeId: null,
+        });
+        return;
+      }
       const bp = getBlueprint(blueprintId);
       if (!bp) return;
       const sim = simulate(bp, { usersConcurrent: 2500, requestsPerUserPerSec: 1 });

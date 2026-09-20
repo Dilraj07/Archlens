@@ -4,6 +4,7 @@ import { ArchCanvas } from '../canvas/ArchCanvas';
 import { MissionPlayer } from '../mission/MissionPlayer';
 import { IncidentPlayer } from '../incident/IncidentPlayer';
 import { BookOpen } from 'lucide-react';
+import { CompanyLogo } from '../../components/ui/CompanyLogo';
 
 const CHALLENGES_LIST = [
   {
@@ -74,16 +75,18 @@ export const ChallengePlayer: React.FC = () => {
           <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
             {CHALLENGES_LIST.map((c) => {
               const isSelected = activeChallengeId === c.id;
+              const companyKey = c.id.includes('tatkal') ? 'irctc' : c.id.includes('cricket') ? 'hotstar' : c.id.includes('analytics') ? 'kafka' : null;
               return (
                 <button
                   key={c.id}
                   onClick={() => handleSelectChallenge(c)}
-                  className={`px-3 py-1.5 rounded-12px text-xs font-mono uppercase tracking-verge-mono whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-12px text-xs font-mono uppercase tracking-verge-mono whitespace-nowrap transition-all flex items-center gap-2 ${
                     isSelected
                       ? 'bg-[#2d2d2d] text-[#3cffd0] font-bold border border-[#3cffd0]/40'
                       : 'bg-[#181818] text-[#949494] hover:text-white border border-[#313131]'
                   }`}
                 >
+                  {companyKey && <CompanyLogo name={companyKey} size="xs" />}
                   <span>{c.title}</span>
                 </button>
               );

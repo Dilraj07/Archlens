@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useArchStore } from '../../store/useArchStore';
 import { ArchCanvas } from '../canvas/ArchCanvas';
 import {
@@ -10,7 +10,10 @@ import {
   Power,
   ChevronDown,
   Info,
+  Sparkles,
 } from 'lucide-react';
+import { CompanyLogo } from '../../components/ui/CompanyLogo';
+import { LevelTourOverlay } from './LevelTourOverlay';
 
 const ARCHITECTURE_PRESETS = [
   {
@@ -65,7 +68,47 @@ export const ArchitectureExplorer: React.FC = () => {
   const setTrafficLoad = useArchStore((s) => s.setTrafficLoad);
   const updateNodeConfig = useArchStore((s) => s.updateNodeConfig);
 
+  const [explorerMode, setExplorerMode] = useState<'tour' | 'sandbox'>('tour');
   const [showFormulaDetails, setShowFormulaDetails] = useState(false);
+
+  // Rolling latency history (last 60 samples) — updated on every sim result change
+  // so users see the *shape* of the response as they drag the slider.
+  const [latencyHistory, setLatencyHistory] = useState<number[]>([]);
+  const lastSampleRef = useRef<number>(0);
+  useEffect(() => {
+    const now = performance.now();
+    if (now - lastSampleRef.current < 120) return;
+    lastSampleRef.current = now;
+    const v = currentResult.system.userLatencyMs;
+    setLatencyHistory((h) => {
+      const next = h.length >= 60 ? [...h.slice(-59), v] : [...h, v];
+      return next;
+    });
+  }, [currentResult]);
+  // Reset history when the blueprint changes
+  useEffect(() => {
+    setLatencyHistory([]);
+  }, [activeBlueprintId]);
+
+  const sparkPath = useMemo(() => {
+    if (latencyHistory.length < 2) return '';
+    const W = 120, H = 32, PAD = 2;
+    const max = Math.max(300, ...latencyHistory);
+    const min = 0;
+    const step = (W - PAD * 2) / (latencyHistory.length - 1);
+    return latencyHistory
+      .map((v, i) => {
+        const x = PAD + i * step;
+        const y = H - PAD - ((v - min) / (max - min)) * (H - PAD * 2);
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+  }, [latencyHistory]);
+
+  const bottleneckId = currentResult.system.bottleneckNodeId;
+  const bottleneckNode = bottleneckId
+    ? activeBlueprint.nodes.find((n) => n.id === bottleneckId)
+    : null;
 
   // Selected node & its live metrics
   const selectedNode = activeBlueprint.nodes.find((n) => n.id === selectedNodeId);
@@ -85,86 +128,123 @@ export const ArchitectureExplorer: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#131313] text-white overflow-hidden select-none">
-      {/* Top Architecture Selector Bar */}
-      <div className="bg-[#131313] border-b border-[#313131] px-6 py-3.5 shrink-0">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          {/* Architecture Selector */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-12px bg-[#3cffd0]/10 border border-[#3cffd0]/30 flex items-center justify-center text-[#3cffd0]">
-              <Layers className="w-4 h-4" />
+      {/* ── Top Bar: Blueprint Selector + Mode Switch ── */}
+      <div className="bg-[#131313] border-b border-[#222] px-4 py-2.5 shrink-0">
+        <div className="flex items-center gap-3">
+          {/* Blueprint selector with logo */}
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-[#3cffd0]/10 border border-[#3cffd0]/30 flex items-center justify-center text-[#3cffd0] shrink-0">
+              <Layers className="w-3.5 h-3.5" />
             </div>
-            <div>
-              <div className="text-[10px] font-mono uppercase tracking-verge-nano text-[#3cffd0] font-bold">
-                SYSTEM TOPOLOGY SHOWROOM
-              </div>
-              <div className="relative inline-block mt-0.5">
-                <select
-                  value={activeBlueprintId}
-                  onChange={(e) => selectArchitecture(e.target.value)}
-                  className="bg-[#181818] text-white font-mono uppercase tracking-verge-mono text-xs rounded-12px px-3 py-1.5 pr-8 border border-[#313131] focus:border-[#3cffd0] outline-none cursor-pointer appearance-none"
-                >
-                  {ARCHITECTURE_PRESETS.map((arch) => (
-                    <option key={arch.id} value={arch.id} className="bg-[#181818]">
-                      {arch.name} ({arch.tag})
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-[#949494] absolute right-2.5 top-2 pointer-events-none" />
-              </div>
+            <CompanyLogo name={activeBlueprintId} size="sm" />
+            <div className="relative">
+              <select
+                value={activeBlueprintId}
+                onChange={(e) => selectArchitecture(e.target.value)}
+                className="bg-[#1a1a1a] text-white font-mono text-xs rounded-lg px-2.5 py-1.5 pr-7 border border-[#2d2d2d] focus:border-[#3cffd0] outline-none cursor-pointer appearance-none max-w-[260px]"
+              >
+                {ARCHITECTURE_PRESETS.map((arch) => (
+                  <option key={arch.id} value={arch.id} className="bg-[#181818]">
+                    {arch.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-[#555] absolute right-2 top-2 pointer-events-none" />
             </div>
           </div>
 
-          {/* Quick System Summary Metrics in Verge styling */}
-          <div className="flex items-center gap-2 overflow-x-auto text-xs font-mono uppercase tracking-verge-mono">
-            <div className="bg-[#181818] border border-[#313131] px-3 py-1.5 rounded-12px flex items-center gap-2">
-              <span className="text-[#949494]">Traffic:</span>
-              <span className="font-bold text-[#3cffd0]">
-                {activeScenario.usersConcurrent.toLocaleString()} req/s
-              </span>
-            </div>
-            <div className="bg-[#181818] border border-[#313131] px-3 py-1.5 rounded-12px flex items-center gap-2">
-              <span className="text-[#949494]">Latency:</span>
-              <span
-                className={`font-bold ${
+          <div className="flex-1" />
+
+          {/* Metrics strip – only in sandbox mode */}
+          {explorerMode === 'sandbox' && (
+            <div className="flex items-center gap-2 text-[11px] font-mono">
+              {/* Rolling latency sparkline */}
+              <div className="bg-[#1a1a1a] border border-[#2d2d2d] px-2.5 py-1 rounded-lg flex items-center gap-2">
+                <span className="text-[#666]">Latency</span>
+                <span className={`font-bold ${
                   userLatency > 300 ? 'text-[#ff3366]' : userLatency > 150 ? 'text-[#ffb703]' : 'text-[#3cffd0]'
-                }`}
-              >
-                {Math.round(userLatency)} ms
-              </span>
+                }`}>{Math.round(userLatency)} ms</span>
+                {sparkPath && (
+                  <svg width="120" height="32" className="ml-1">
+                    <path
+                      d={sparkPath}
+                      fill="none"
+                      stroke={userLatency > 300 ? '#ff3366' : userLatency > 150 ? '#ffb703' : '#3cffd0'}
+                      strokeWidth="1.5"
+                    />
+                  </svg>
+                )}
+              </div>
+              {/* Error rate + dropped */}
+              {(errorRate > 0.001 || droppedRequests > 0) && (
+                <div className="bg-[#1a1a1a] border border-[#ff3366]/40 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+                  <span className="text-[#666]">Dropped</span>
+                  <span className="font-bold text-[#ff3366]">{droppedRequests}/s</span>
+                  <span className="text-[#666]">({(errorRate * 100).toFixed(1)}%)</span>
+                </div>
+              )}
+              {/* Bottleneck badge */}
+              {bottleneckNode && systemStatus !== 'healthy' && (
+                <div className="bg-[#1a1a1a] border border-[#ff3366]/50 px-2.5 py-1 rounded-lg flex items-center gap-1.5 animate-alert">
+                  <AlertTriangle className="w-3 h-3 text-[#ff3366]" />
+                  <span className="text-[#666]">Bottleneck</span>
+                  <span className="font-bold text-[#ff3366] truncate max-w-[140px]">{bottleneckNode.name}</span>
+                </div>
+              )}
+              <div className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase flex items-center gap-1 border ${
+                systemStatus === 'healthy' ? 'bg-[#1a1a1a] text-[#3cffd0] border-[#3cffd0]/30'
+                  : systemStatus === 'degraded' ? 'bg-[#1a1a1a] text-[#ffb703] border-[#ffb703]/30'
+                  : 'bg-[#1a1a1a] text-[#ff3366] border-[#ff3366]/50'
+              }`}>
+                {systemStatus === 'healthy' && <CheckCircle className="w-3 h-3" />}
+                {systemStatus === 'degraded' && <AlertTriangle className="w-3 h-3" />}
+                {systemStatus === 'incident' && <XCircle className="w-3 h-3" />}
+                {systemStatus}
+              </div>
             </div>
-            <div className="bg-[#181818] border border-[#313131] px-3 py-1.5 rounded-12px flex items-center gap-2">
-              <span className="text-[#949494]">Dropped:</span>
-              <span className={`font-bold ${droppedRequests > 0 ? 'text-[#ff3366]' : 'text-[#3cffd0]'}`}>
-                {droppedRequests.toLocaleString()} ({Math.round(errorRate * 100)}%)
-              </span>
-            </div>
-            <div
-              className={`px-3 py-1.5 rounded-12px text-[11px] font-bold uppercase tracking-verge-nano flex items-center gap-1.5 border ${
-                systemStatus === 'healthy'
-                  ? 'bg-[#181818] text-[#3cffd0] border-[#3cffd0]/40'
-                  : systemStatus === 'degraded'
-                  ? 'bg-[#181818] text-[#ffb703] border-[#ffb703]/40'
-                  : 'bg-[#181818] text-[#ff3366] border-[#ff3366]'
+          )}
+
+          {/* Mode switch */}
+          <div className="flex items-center gap-0.5 bg-[#1a1a1a] p-1 rounded-lg border border-[#252525] shrink-0">
+            <button
+              onClick={() => setExplorerMode('tour')}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-mono flex items-center gap-1.5 font-bold transition-all ${
+                explorerMode === 'tour' ? 'bg-[#3cffd0] text-black' : 'text-[#666] hover:text-white'
               }`}
             >
-              {systemStatus === 'healthy' && <CheckCircle className="w-3.5 h-3.5" />}
-              {systemStatus === 'degraded' && <AlertTriangle className="w-3.5 h-3.5" />}
-              {systemStatus === 'incident' && <XCircle className="w-3.5 h-3.5" />}
-              <span>{systemStatus}</span>
-            </div>
+              <Sparkles className="w-3 h-3" />
+              <span>Tour</span>
+            </button>
+            <button
+              onClick={() => setExplorerMode('sandbox')}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-mono flex items-center gap-1.5 font-bold transition-all ${
+                explorerMode === 'sandbox' ? 'bg-[#252525] text-white border border-[#3cffd0]/20' : 'text-[#666] hover:text-white'
+              }`}
+            >
+              <Sliders className="w-3 h-3" />
+              <span>Sandbox</span>
+            </button>
           </div>
         </div>
       </div>
 
+
       {/* Main Area: Canvas (Left) + Interactive Hyperparameter Inspector (Right) */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
-        {/* Left: Canvas Area — relative so ArchCanvas (absolute inset-0) can anchor to this */}
-        <div className="flex-1 relative min-h-0">
-          <ArchCanvas />
+        {/* Left: Canvas Area + Bottom Guided Level Tour Overlay */}
+        <div className="flex-1 relative flex flex-col min-h-0">
+          <div className="flex-1 relative min-h-0">
+            <ArchCanvas />
+          </div>
+          {explorerMode === 'tour' && (
+            <div className="shrink-0 z-20">
+              <LevelTourOverlay onClose={() => setExplorerMode('sandbox')} />
+            </div>
+          )}
         </div>
 
-        {/* Right: Interactive Hyperparameter & Tuning Sidebar */}
-        <div className="w-full lg:w-[420px] bg-[#181818] border-l border-[#313131] flex flex-col h-full overflow-y-auto p-5 space-y-6 shrink-0 z-10">
+        {/* Right: Interactive Hyperparameter & Tuning Sidebar (hidden in tour mode) */}
+        <div className={`w-full lg:w-[420px] bg-[#181818] border-l border-[#313131] flex flex-col h-full overflow-y-auto p-5 space-y-6 shrink-0 z-10 ${explorerMode === 'tour' ? 'hidden' : ''}`}>
           {/* Section 1: Traffic Load Slider (Hyperparameter Control) */}
           <div className="bg-[#131313] border border-[#313131] rounded-20px p-5">
             <div className="flex items-center justify-between mb-2">
@@ -283,7 +363,7 @@ export const ArchitectureExplorer: React.FC = () => {
                       -
                     </button>
                     <span className="font-mono font-bold text-[#3cffd0] w-6 text-center">
-                      ×{selectedNode.replicas}
+                      Ã—{selectedNode.replicas}
                     </span>
                     <button
                       onClick={() =>
@@ -394,15 +474,15 @@ export const ArchitectureExplorer: React.FC = () => {
                 {showFormulaDetails && selectedMetrics && (
                   <div className="mt-3 p-3 bg-[#181818] rounded-12px border border-[#313131] text-[11px] font-mono text-[#949494] space-y-1.5">
                     <div>
-                      Offered Load (λ):{' '}
+                      Offered Load (Î»):{' '}
                       <span className="text-white font-bold">{Math.round(selectedMetrics.offeredLoad)} req/s</span>
                     </div>
                     <div>
-                      Service Capacity (μ):{' '}
+                      Service Capacity (Î¼):{' '}
                       <span className="text-white font-bold">{Math.round(selectedMetrics.capacity)} req/s</span>
                     </div>
                     <div>
-                      Utilization (ρ = λ/μ):{' '}
+                      Utilization (Ï = Î»/Î¼):{' '}
                       <span className="text-[#3cffd0] font-bold">
                         {(selectedMetrics.utilization * 100).toFixed(1)}%
                       </span>
@@ -414,7 +494,7 @@ export const ArchitectureExplorer: React.FC = () => {
                     <div>
                       Formula:{' '}
                       <span className="text-[#3cffd0]">
-                        baseLatency / (1 - min(ρ, 0.95)) + wait
+                        baseLatency / (1 - min(Ï, 0.95)) + wait
                       </span>
                     </div>
                   </div>
@@ -435,3 +515,4 @@ export const ArchitectureExplorer: React.FC = () => {
     </div>
   );
 };
+

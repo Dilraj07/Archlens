@@ -27,8 +27,10 @@ import {
   ChevronRight,
   ExternalLink,
   Link2,
+  ArrowLeft,
 } from 'lucide-react';
 import { useArchStore } from '../../store/useArchStore';
+import { CompanyLogo } from '../../components/ui/CompanyLogo';
 
 // Icon map kept for future use
 const _ICON_MAP: Record<string, React.ElementType> = {
@@ -596,7 +598,8 @@ const CAT_COLOR: Record<string, string> = {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export const LearnSystemDesign: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'concepts' | 'catalog'>('concepts');
+  const activeTab = useArchStore((s) => s.learnTab);
+  const setActiveTab = useArchStore((s) => s.setLearnTab);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [inspectedComponent, setInspectedComponent] = useState<ComponentInfo | null>(
     COMPONENTS_DATA[0] || null
@@ -629,13 +632,25 @@ export const LearnSystemDesign: React.FC = () => {
       {/* Sub-header */}
       <div className="border-b border-[#313131] bg-[#131313] sticky top-0 z-20 px-6 py-3.5">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <span className="text-[10px] font-mono text-[#3cffd0] uppercase tracking-verge-nano font-bold block">
-              Architectural Pedagogy & Encyclopedia
-            </span>
-            <h1 className="text-2xl font-display font-black tracking-wider text-white mt-0.5">
-              LEARN SYSTEM DESIGN
-            </h1>
+          <div className="flex items-center gap-3">
+            {activeTab === 'catalog' && (
+              <button
+                onClick={() => setActiveTab('concepts')}
+                className="w-8 h-8 rounded-10px bg-[#181818] hover:bg-[#252525] border border-[#313131] hover:border-[#3cffd0] flex items-center justify-center text-[#e9e9e9] hover:text-[#3cffd0] transition-all group shrink-0"
+                title="Back to System Design Concepts"
+                aria-label="Back to System Design Concepts"
+              >
+                <ArrowLeft className="w-4 h-4 text-[#3cffd0] transition-transform group-hover:-translate-x-0.5" />
+              </button>
+            )}
+            <div>
+              <span className="text-[10px] font-mono text-[#3cffd0] uppercase tracking-verge-nano font-bold block">
+                {activeTab === 'catalog' ? 'Architectural Encyclopedia // 12 Components' : 'Architectural Pedagogy & Encyclopedia'}
+              </span>
+              <h1 className="text-2xl font-display font-black tracking-wider text-white mt-0.5">
+                {activeTab === 'catalog' ? 'COMPONENT CATALOG' : 'LEARN SYSTEM DESIGN'}
+              </h1>
+            </div>
           </div>
           <div className="flex items-center gap-2 bg-[#181818] p-1 rounded-12px border border-[#313131]">
             <button
@@ -741,14 +756,18 @@ export const LearnSystemDesign: React.FC = () => {
               <div className="space-y-4">
                 {[
                   { num:'01', arch:'simple-app', title:'Single Server Monolith (1 – 1,000 Users)', desc:'Application compute and database run on a single host. Zero redundancy; susceptible to single points of failure.' },
-                  { num:'02', arch:'scaled-app', title:'Load Balancer + Cache (1,000 – 100,000 Users)', desc:'Dedicated database tier. Reverse-proxy load balancing over stateless app servers with Redis cache absorbing 85% of read volume.' },
-                  { num:'03', arch:'amazon', title:'Microservices & Event Queues (Amazon Scale)', desc:'Decoupled bounded contexts (Catalog, Cart, Orders). Kafka message streams buffer checkout spikes, while NoSQL powers partition tolerance.' },
+                  { num:'02', arch:'scaled-app', title:'Load Balancer + Cache (1,000 – 100,000 Users)', desc:'Dedicated database tier. Reverse-proxy load balancing over stateless app servers with Redis cache absorbing 85% of read volume.', company: 'redis' },
+                  { num:'03', arch:'amazon', title:'Microservices & Event Queues (Amazon Scale)', desc:'Decoupled bounded contexts (Catalog, Cart, Orders). Kafka message streams buffer checkout spikes, while NoSQL powers partition tolerance.', company: 'amazon' },
+                  { num:'04', arch:'netflix', title:'Global Edge CDN & Telemetry (Netflix Scale)', desc:'Custom Open Connect CDN appliances deployed inside ISPs worldwide, streaming video chunks directly at the edge.', company: 'netflix' },
                 ].map((s, i) => (
                   <div key={i} className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 rounded-16px bg-[#131313] border border-[#313131]">
                     <div className="flex items-start gap-3">
                       <span className="w-7 h-7 rounded-8px bg-[#181818] border border-[#313131] text-[#3cffd0] font-mono font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">{s.num}</span>
                       <div>
-                        <h4 className="font-bold text-white text-sm font-mono uppercase tracking-verge-mono">{s.title}</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-white text-sm font-mono uppercase tracking-verge-mono">{s.title}</h4>
+                          {s.company && <CompanyLogo name={s.company} size="sm" />}
+                        </div>
                         <p className="text-xs text-[#949494] mt-1">{s.desc}</p>
                       </div>
                     </div>
@@ -892,9 +911,9 @@ export const LearnSystemDesign: React.FC = () => {
                           <span className="flex items-center gap-1 font-bold" style={{ color: accentColor }}>
                             Inspect →
                           </span>
-                          <span className="text-[10px] text-[#555]">
-                            {component.realWorldExample.company.split(' ')[0]}
-                          </span>
+                          <div className="flex items-center" title={component.realWorldExample.company}>
+                            <CompanyLogo name={component.realWorldExample.company} size="xs" />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1020,12 +1039,15 @@ export const LearnSystemDesign: React.FC = () => {
 
                     {/* 6. Real-World Spotlight */}
                     <div className="bg-[#131313] border border-[#252525] rounded-16px p-4">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-white mb-1 font-mono uppercase tracking-verge-mono">
-                        <ExternalLink className="w-3.5 h-3.5" style={{ color: accentColor }} />
-                        Spotlight: {inspectedComponent.realWorldExample.company}
+                      <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-[#222222]">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-white font-mono uppercase tracking-verge-mono">
+                          <ExternalLink className="w-3.5 h-3.5" style={{ color: accentColor }} />
+                          Real-World Spotlight
+                        </div>
+                        <CompanyLogo name={inspectedComponent.realWorldExample.company} size="md" />
                       </div>
-                      <div className="text-[11px] font-mono mb-1" style={{ color: accentColor }}>
-                        {inspectedComponent.realWorldExample.architectureTitle}
+                      <div className="text-[11px] font-mono font-bold mb-1 text-white">
+                        {inspectedComponent.realWorldExample.company}: {inspectedComponent.realWorldExample.architectureTitle}
                       </div>
                       <p className="text-xs text-[#949494] leading-relaxed">
                         {inspectedComponent.realWorldExample.description}

@@ -8,6 +8,8 @@ import {
   Target,
 } from 'lucide-react';
 import { useArchStore } from '../store/useArchStore';
+import { PredictBreakLoopSection } from '../features/landing/PredictBreakLoopSection';
+import { CompanyLogo } from '../components/ui/CompanyLogo';
 
 export const LandingPage: React.FC = () => {
   const selectArchitecture = useArchStore((s) => s.selectArchitecture);
@@ -86,7 +88,7 @@ export const LandingPage: React.FC = () => {
             <div>
               <div className="flex items-center justify-between text-[11px] font-mono font-bold tracking-verge-mono uppercase mb-3">
                 <span>CONCURRENCY</span>
-                <span>SPIKES &amp; LOCKS</span>
+                <CompanyLogo name="irctc" size="md" />
               </div>
               <h3 className="text-3xl font-display font-black leading-none mb-2 tracking-wide">
                 IRCTC TATKAL AT 10:00 AM
@@ -109,7 +111,7 @@ export const LandingPage: React.FC = () => {
             <div>
               <div className="flex items-center justify-between text-[11px] font-mono tracking-verge-mono uppercase mb-3">
                 <span>MICROSERVICES</span>
-                <span className="text-[#3cffd0]">EVENT PIPELINES</span>
+                <CompanyLogo name="amazon" size="md" />
               </div>
               <h3 className="text-3xl font-display font-black leading-none mb-2 tracking-wide">
                 AMAZON E-COMMERCE
@@ -132,7 +134,7 @@ export const LandingPage: React.FC = () => {
             <div>
               <div className="flex items-center justify-between text-[11px] font-mono text-[#3cffd0] tracking-verge-mono uppercase mb-3 font-bold">
                 <span>HIGH THROUGHPUT</span>
-                <span>EDGE CDN</span>
+                <CompanyLogo name="netflix" size="md" />
               </div>
               <h3 className="text-3xl font-display font-black leading-none mb-2 tracking-wide group-hover:text-[#3cffd0] transition-colors">
                 NETFLIX VIDEO STREAMING
@@ -233,43 +235,7 @@ export const LandingPage: React.FC = () => {
       </div>
 
       {/* SECTION 3: THE 6-STEP LEARNING LOOP */}
-      <div className="bg-[#181818] border border-[#313131] rounded-24px p-6 md:p-8">
-        <div className="mb-6">
-          <span className="text-[10px] font-mono text-[#3cffd0] uppercase tracking-verge-nano block mb-1 font-bold">
-            How It Works
-          </span>
-          <h3 className="text-2xl font-bold text-white tracking-tight">
-            The 6-Step Predict-Break-Diagnose Loop
-          </h3>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs font-mono">
-          <div className="bg-[#131313] p-4 rounded-16px border border-[#313131]">
-            <div className="text-[#3cffd0] font-bold mb-1">01. CONTEXT</div>
-            <p className="text-[11px] text-[#949494]">Real-world traffic spike mission brief.</p>
-          </div>
-          <div className="bg-[#131313] p-4 rounded-16px border border-[#313131]">
-            <div className="text-[#3cffd0] font-bold mb-1">02. PREDICT</div>
-            <p className="text-[11px] text-[#949494]">Commit structured answer before observing.</p>
-          </div>
-          <div className="bg-[#131313] p-4 rounded-16px border border-[#313131]">
-            <div className="text-[#3cffd0] font-bold mb-1">03. BREAK</div>
-            <p className="text-[11px] text-[#949494]">Deterministic queueing simulation runs.</p>
-          </div>
-          <div className="bg-[#131313] p-4 rounded-16px border border-[#313131]">
-            <div className="text-[#3cffd0] font-bold mb-1">04. EXPLAIN</div>
-            <p className="text-[11px] text-[#949494]">Clear tutor explains the exact math.</p>
-          </div>
-          <div className="bg-[#131313] p-4 rounded-16px border border-[#313131]">
-            <div className="text-[#3cffd0] font-bold mb-1">05. FIX</div>
-            <p className="text-[11px] text-[#949494]">Apply mitigations to satisfy SLO goals.</p>
-          </div>
-          <div className="bg-[#131313] p-4 rounded-16px border border-[#3cffd0]/50">
-            <div className="text-[#3cffd0] font-bold mb-1">06. MASTERY</div>
-            <p className="text-[11px] text-[#e9e9e9]">Retain concepts with spaced practice.</p>
-          </div>
-        </div>
-      </div>
+      <PredictBreakLoopSection />
 
       {/* FOOTER CITATIONS & INFO */}
       <div className="pt-8 border-t border-[#313131] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-[#949494]">
