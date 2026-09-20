@@ -4,6 +4,10 @@
 > **Challenge:** CodeMyFYP Hackathon 2026 · Challenge 01: AI for Learning  
 > **Core Architecture:** Deterministic Simulation Engine (Ground Truth) + Responsible AI Mentor + The Verge Design System
 
+<p align="center">
+  <img src="./docs/assets/archlens-preview.png" alt="ArchLens Platform Interface" width="100%" />
+</p>
+
 ---
 
 ## Problem: System Design Has No Feedback Loop
