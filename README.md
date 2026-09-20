@@ -39,19 +39,45 @@ Inverts the learning loop:
 - **Root Cause Diagnosis:** Student submits their diagnosis (`{ rootCauseNode, causeType }`).
 - **Post-Mortem Cascade:** Replays the chronological failure propagation across upstream and downstream dependencies.
 
-### 3. Glass Box Transparency
+### 3. Guided Architecture Walkthroughs (Interactive Level Tours)
+To bridge the gap before running high-stress simulations, each architecture includes a step-by-step interactive tour:
+- **Spotlight Navigation:** Highlights relevant nodes and data paths at each stage (e.g., Edge Ingress -> API Gateway -> Microservices -> Cache/Broker -> Primary DB).
+- **Stage Explanations:** Explains the engineering rationale, failover strategies, and bottleneck risks at each layer.
+- **Audio Narration Support:** Integrates directly with voice narration for audio-guided learning.
+
+### 4. Design Studio (Drag-and-Drop Architecture Sandbox)
+A full-featured visual architecture editor allowing learners and system architects to:
+- **Start from Scratch or Templates:** Build custom topologies from a blank canvas or jumpstart from industry templates.
+- **Node Library:** Drag and drop clients, reverse proxies, microservices, distributed caches, event brokers, and relational/document databases.
+- **Real-Time Traffic Tuning:** Adjust concurrent user load (RPS) via interactive sliders and immediately watch M/M/1 queuing math calculate per-node utilization, latency spikes, and packet drop rates.
+- **Dynamic Wiring:** Connect source and target handles with real-time cycle detection and topological validation.
+
+### 5. Voice AI Narration (Web Speech API)
+- Hands-free Socratic mentorship powered by native speech synthesis (`speechNarrator.ts`).
+- Provides spoken briefings during high-intensity incident simulations and real-time audio guidance through tutor explanations.
+- Features play, pause, resume, and rate/pitch controls with instant cancellation.
+
+### 6. Glass Box Transparency
 Unlike black-box simulators, the **Glass Box** inspector displays the exact M/M/1 queueing theory equations ($\lambda, \mu, \rho$, latency, drops) for any selected node.
 
-### 4. Spaced Retention & Daily Incident
+### 7. Spaced Retention & Daily Incident
 - 90-second incident variant targeting the learner's weakest concept.
 - Powered by a Leitner-box spaced repetition algorithm persisted in `localStorage`.
 
+### 8. System Design Knowledge Base & Component Catalog
+- **Interactive Theory Hub:** Comprehensive learning modules covering Horizontal vs. Vertical Scaling, CAP Theorem, Database Sharding, Caching Topologies, and Message Queuing.
+- **Component Catalog:** Deep-dive cards detailing operational characteristics, failure modes, latency baselines, and architectural tradeoffs for each infrastructure component.
+
 ---
 
-## Authentic Indian Blueprints & Missions
+## Authentic Industry Blueprints & Brand System
 
+ArchLens features realistic topologies with authentic SVG company assets (`CompanyLogo.tsx`):
 1. **IRCTC Tatkal at 10 AM** (`tatkal.json`): 11-node architecture modeling the extreme 10 AM ticket surge, CDN bypass, Redis seat cache eviction, database bottleneck, and payment gateway fanout.
 2. **The Final Over (Live Cricket Streaming)** (`cricket.json`): 11-node architecture modeling CDN edge delivery, video segment transcoders, session cache stampede, and telemetry decoupling.
+3. **Amazon E-Commerce Flash Sale**: Microservice architecture handling lightning deals, inventory reservation, asynchronous cart checkout, and distributed database locking.
+4. **Netflix Video Streaming**: Global CDN distribution with edge compute, origin video transcoding pipelines, and user recommendation caches.
+5. **Authentic Vector Brand Library**: Integrated SVG marks for Amazon, Netflix, IRCTC, Hotstar, Redis, Apache Kafka, Stripe, Uber, Airbnb, Cloudflare, Discord, GitHub, LinkedIn, X, and YouTube.
 
 ---
 
@@ -72,6 +98,9 @@ Judges evaluate Responsible AI rigorously (15% of score). ArchLens enforces non-
 | **Simulation Truth** | Deterministic / Heuristic | Hallucinates numbers | **Deterministic M/M/1 Engine** |
 | **Predict-Before-Seeing** | No (Passive Sandbox) | No | **Yes (Mandatory Structured Prediction)** |
 | **Incident Mode** | No | No | **Yes (Fog of War + Inspection Budget)** |
+| **Guided Architecture Tours** | No | No | **Yes (Multi-Step Node Highlighting)** |
+| **Custom Sandbox / Canvas** | Partial | No | **Yes (Blank Canvas + Drag-and-Drop + Live Sim)** |
+| **Voice AI Narration** | No | No | **Yes (Integrated Speech Synthesis)** |
 | **Formula Transparency** | Hidden | No | **Yes (Glass Box Panel)** |
 | **AI Grounding Guardrails** | No AI | Unchecked | **Yes (±2% Delta Validator + Spoiler Guard)** |
 | **Spaced Repetition** | No | No | **Yes (Leitner-Box Daily Incidents)** |
